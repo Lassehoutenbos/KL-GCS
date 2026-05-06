@@ -43,7 +43,7 @@
 /* ST7735S 128x128 pixel offsets for 90° CCW rotation (MV=1).
  * With MV set, CASET addresses rows (132→offset 3) and
  * RASET addresses columns (162→offset 2). */
-#define XSTART  1
+#define XSTART  3
 #define YSTART  2
 
 /* ------------------------------------------------------------------ */
@@ -222,6 +222,17 @@ void st7735_init(void)
     gpio_set_function(PIN_TFT_SCK,  GPIO_FUNC_SPI);
     gpio_set_function(PIN_TFT_MOSI, GPIO_FUNC_SPI);
 
+    /* RP2350 default drive strength is 4 mA / slow slew — ST7735 modules can
+     * fail to latch the clock edge reliably. Crank drive strength + slew on
+     * all TFT signal pins. */
+    gpio_set_drive_strength(PIN_TFT_SCK,  GPIO_DRIVE_STRENGTH_12MA);
+    gpio_set_drive_strength(PIN_TFT_MOSI, GPIO_DRIVE_STRENGTH_12MA);
+    gpio_set_drive_strength(PIN_TFT_CS,   GPIO_DRIVE_STRENGTH_12MA);
+    gpio_set_drive_strength(PIN_TFT_DC,   GPIO_DRIVE_STRENGTH_12MA);
+    gpio_set_drive_strength(PIN_TFT_RST,  GPIO_DRIVE_STRENGTH_12MA);
+    gpio_set_slew_rate(PIN_TFT_SCK,  GPIO_SLEW_RATE_FAST);
+    gpio_set_slew_rate(PIN_TFT_MOSI, GPIO_SLEW_RATE_FAST);
+
     /* Backlight PWM on PIN_TFT_BLK (GP15, slice 7 ch B).
      * Wrap = 255 → PWM frequency = clk_sys / 256 ≈ 586 kHz at 150 MHz
      * (RP2350 default), well above any visible flicker.
@@ -252,16 +263,13 @@ void st7735_init(void)
     write_cmd(ST77_SLPOUT);
     vTaskDelay(pdMS_TO_TICKS(500));
 
-    /* Main register setup */
-    {
-
-    /* Frame rate */
+    /* Full ST7735R init — bare ST7735 (non-S) needs PWCTR/VMCTR/FRMCTR
+     * because it has no integrated charge pump. Values from Adafruit's
+     * proven ST7735R "RedTab" init. */
     write_cmd(ST77_FRMCTR1);
     write_data_byte(0x01); write_data_byte(0x2C); write_data_byte(0x2D);
-
     write_cmd(ST77_FRMCTR2);
     write_data_byte(0x01); write_data_byte(0x2C); write_data_byte(0x2D);
-
     write_cmd(ST77_FRMCTR3);
     write_data_byte(0x01); write_data_byte(0x2C); write_data_byte(0x2D);
     write_data_byte(0x01); write_data_byte(0x2C); write_data_byte(0x2D);
@@ -280,16 +288,10 @@ void st7735_init(void)
 
     write_cmd(ST77_VMCTR1);  write_data_byte(0x0E);
 
-    write_cmd(ST77_INVOFF);
+    write_cmd(ST77_COLMOD);  write_data_byte(0x05);   /* 16-bit colour */
+    write_cmd(ST77_MADCTL);  write_data_byte(0x68);   /* MX+MV+BGR — 90° CW */
+    write_cmd(ST77_INVON);
 
-    /* Memory access control: MX+MV = 270° CCW (= 90° CW) rotation, RGB colour order.
-     * If red/blue are swapped on your module, change 0x60 to 0x68 (BGR). */
-    write_cmd(ST77_MADCTL);  write_data_byte(0x68);
-
-    /* 16-bit colour */
-    write_cmd(ST77_COLMOD);  write_data_byte(0x05);
-
-    /* Gamma */
     write_cmd(ST77_GMCTRP1);
     {
         static const uint8_t g[] = {
@@ -308,7 +310,6 @@ void st7735_init(void)
     }
 
     write_cmd(ST77_NORON);
-    }
     vTaskDelay(pdMS_TO_TICKS(10));
 
     write_cmd(ST77_DISPON);

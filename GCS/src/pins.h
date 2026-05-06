@@ -89,7 +89,7 @@
 #define PIN_TFT_RST         14  /* GP14 — hardware reset (active low) */
 #define PIN_TFT_BLK         15  /* GP15 — backlight PWM (PWM slice 7 ch B)  */
 #define ST7735_SPI_INST     spi1
-#define ST7735_SPI_BAUD     15625000  /* 15.625 MHz — 125 MHz / 8, near ST7735S max */
+#define ST7735_SPI_BAUD     1000000   /* 1 MHz — RP2350 SPI divider sanity test */
 
 /* ------------------------------------------------------------------ */
 /* UART1 — RS-485 peripheral bus (GP8/GP9 + GP2 DE/RE)                 */
