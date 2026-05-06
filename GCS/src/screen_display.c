@@ -12,6 +12,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -86,6 +87,197 @@ static void draw_rrect(int16_t x, int16_t y, int16_t w, int16_t h,
         st7735_draw_pixel(x + ind,         y + h - 1 - i, color);
         st7735_draw_pixel(x + w - 1 - ind, y + h - 1 - i, color);
     }
+}
+
+typedef enum {
+    UI_ICON_GCS,
+    UI_ICON_BATTERY,
+    UI_ICON_POWER,
+    UI_ICON_KEY,
+    UI_ICON_PI,
+    UI_ICON_IO,
+    UI_ICON_WAIT,
+    UI_ICON_ALERT,
+    UI_ICON_LOCK,
+    UI_ICON_SEARCHLIGHT,
+    UI_ICON_RADAR,
+    UI_ICON_PANTILT,
+    UI_ICON_LIGHTBAR,
+    UI_ICON_DEVICE,
+    UI_ICON_SIGNAL,
+    UI_ICON_TEMP,
+} ui_icon_t;
+
+static int16_t text_width_px(const char *s, uint8_t size)
+{
+    return (int16_t)(strlen(s) * 6u * size);
+}
+
+static void draw_centered_string(int16_t y, const char *s,
+                                 uint16_t fg, uint16_t bg, uint8_t size)
+{
+    st7735_draw_string((128 - text_width_px(s, size)) / 2, y, s, fg, bg, size);
+}
+
+static void draw_status_dot(int16_t x, int16_t y, uint16_t color, uint16_t bg)
+{
+    fill_rrect(x, y, 8, 8, 4, color);
+    st7735_draw_pixel(x + 1, y + 1, ST7735_WHITE);
+    st7735_draw_pixel(x + 6, y + 6, bg);
+}
+
+static void draw_icon(ui_icon_t icon, int16_t x, int16_t y,
+                      uint16_t fg, uint16_t bg)
+{
+    st7735_fill_rect(x, y, 12, 12, bg);
+
+    switch (icon) {
+        case UI_ICON_GCS:
+            st7735_draw_hline(x + 2, y + 5, 8, fg);
+            st7735_draw_vline(x + 6, y + 2, 7, fg);
+            fill_rrect(x + 1, y + 1, 3, 3, 1, fg);
+            fill_rrect(x + 8, y + 1, 3, 3, 1, fg);
+            fill_rrect(x + 1, y + 8, 3, 3, 1, fg);
+            fill_rrect(x + 8, y + 8, 3, 3, 1, fg);
+            break;
+
+        case UI_ICON_BATTERY:
+            draw_rrect(x + 1, y + 3, 9, 6, 1, fg);
+            st7735_fill_rect(x + 10, y + 5, 2, 2, fg);
+            st7735_fill_rect(x + 3, y + 5, 2, 2, fg);
+            st7735_fill_rect(x + 6, y + 5, 2, 2, fg);
+            break;
+
+        case UI_ICON_POWER:
+            st7735_draw_vline(x + 4, y + 2, 5, fg);
+            st7735_draw_vline(x + 7, y + 2, 5, fg);
+            st7735_draw_hline(x + 3, y + 7, 6, fg);
+            st7735_draw_vline(x + 6, y + 7, 4, fg);
+            st7735_draw_hline(x + 6, y + 10, 4, fg);
+            break;
+
+        case UI_ICON_KEY:
+            draw_rrect(x + 1, y + 3, 5, 5, 2, fg);
+            st7735_draw_pixel(x + 3, y + 5, bg);
+            st7735_draw_hline(x + 6, y + 5, 5, fg);
+            st7735_draw_vline(x + 9, y + 5, 3, fg);
+            st7735_draw_vline(x + 11, y + 5, 2, fg);
+            break;
+
+        case UI_ICON_PI:
+            fill_rrect(x + 2, y + 2, 8, 8, 2, fg);
+            fill_rrect(x + 4, y + 4, 4, 4, 1, bg);
+            for (int i = 0; i < 3; i++) {
+                st7735_draw_pixel(x + 1, y + 3 + i * 2, fg);
+                st7735_draw_pixel(x + 10, y + 3 + i * 2, fg);
+            }
+            break;
+
+        case UI_ICON_IO:
+            draw_rrect(x + 2, y + 3, 8, 6, 1, fg);
+            st7735_draw_pixel(x + 3, y + 2, fg);
+            st7735_draw_pixel(x + 5, y + 2, fg);
+            st7735_draw_pixel(x + 7, y + 2, fg);
+            st7735_draw_pixel(x + 3, y + 9, fg);
+            st7735_draw_pixel(x + 5, y + 9, fg);
+            st7735_draw_pixel(x + 7, y + 9, fg);
+            break;
+
+        case UI_ICON_WAIT:
+            st7735_draw_hline(x + 3, y + 2, 6, fg);
+            st7735_draw_hline(x + 3, y + 9, 6, fg);
+            for (int i = 0; i < 4; i++) {
+                st7735_draw_pixel(x + 4 + i, y + 3 + i, fg);
+                st7735_draw_pixel(x + 7 - i, y + 3 + i, fg);
+            }
+            break;
+
+        case UI_ICON_ALERT:
+            for (int row = 0; row < 9; row++) {
+                int16_t half = (int16_t)(row / 2);
+                st7735_draw_hline(x + 6 - half, y + 1 + row, half * 2 + 1, fg);
+            }
+            st7735_draw_vline(x + 6, y + 4, 3, bg);
+            st7735_draw_pixel(x + 6, y + 8, bg);
+            break;
+
+        case UI_ICON_LOCK:
+            draw_rrect(x + 3, y + 1, 6, 6, 3, fg);
+            st7735_fill_rect(x + 4, y + 5, 4, 3, bg);
+            fill_rrect(x + 2, y + 6, 8, 5, 1, fg);
+            st7735_draw_pixel(x + 6, y + 8, bg);
+            break;
+
+        case UI_ICON_SEARCHLIGHT:
+            fill_rrect(x + 1, y + 6, 4, 4, 1, fg);
+            for (int row = 0; row < 7; row++) {
+                st7735_draw_hline(x + 5, y + 3 + row, row + 2, fg);
+            }
+            break;
+
+        case UI_ICON_RADAR:
+            st7735_draw_hline(x + 2, y + 9, 8, fg);
+            st7735_draw_vline(x + 6, y + 5, 4, fg);
+            st7735_draw_hline(x + 5, y + 5, 3, fg);
+            st7735_draw_pixel(x + 4, y + 4, fg);
+            st7735_draw_pixel(x + 8, y + 4, fg);
+            st7735_draw_pixel(x + 3, y + 2, fg);
+            st7735_draw_pixel(x + 9, y + 2, fg);
+            break;
+
+        case UI_ICON_PANTILT:
+            fill_rrect(x + 2, y + 4, 8, 5, 1, fg);
+            st7735_draw_pixel(x + 5, y + 6, bg);
+            st7735_draw_pixel(x + 6, y + 6, bg);
+            st7735_draw_vline(x + 6, y + 9, 2, fg);
+            st7735_draw_hline(x + 3, y + 11, 6, fg);
+            break;
+
+        case UI_ICON_LIGHTBAR:
+            fill_rrect(x + 1, y + 4, 10, 4, 1, fg);
+            st7735_draw_vline(x + 4, y + 4, 4, bg);
+            st7735_draw_vline(x + 8, y + 4, 4, bg);
+            st7735_draw_hline(x + 2, y + 9, 8, fg);
+            break;
+
+        case UI_ICON_DEVICE:
+            draw_rrect(x + 2, y + 2, 8, 8, 1, fg);
+            st7735_draw_hline(x + 4, y + 5, 4, fg);
+            st7735_draw_hline(x + 4, y + 7, 4, fg);
+            break;
+
+        case UI_ICON_SIGNAL:
+            st7735_fill_rect(x + 2, y + 8, 2, 2, fg);
+            st7735_fill_rect(x + 5, y + 6, 2, 4, fg);
+            st7735_fill_rect(x + 8, y + 3, 2, 7, fg);
+            break;
+
+        case UI_ICON_TEMP:
+            draw_rrect(x + 5, y + 2, 3, 7, 1, fg);
+            fill_rrect(x + 3, y + 8, 7, 3, 2, fg);
+            st7735_draw_vline(x + 6, y + 4, 5, bg);
+            break;
+    }
+}
+
+static ui_icon_t periph_icon(uint8_t addr)
+{
+    switch (addr) {
+        case 0x01: return UI_ICON_SEARCHLIGHT;
+        case 0x02: return UI_ICON_RADAR;
+        case 0x03: return UI_ICON_PANTILT;
+        case 0x04: return UI_ICON_LIGHTBAR;
+        default:   return UI_ICON_DEVICE;
+    }
+}
+
+static void draw_header(const char *title, ui_icon_t icon,
+                        uint16_t bg, uint16_t fg, uint16_t accent)
+{
+    st7735_fill_rect(0, 0, 128, 16, bg);
+    draw_icon(icon, 4, 2, fg, bg);
+    draw_centered_string(4, title, fg, bg, 1);
+    st7735_fill_rect(0, 16, 128, 1, accent);
 }
 
 /* ------------------------------------------------------------------ */
@@ -184,20 +376,16 @@ static void render_waiting(void)
 {
     st7735_fill_screen(COL_CHARCOAL);
 
-    /* Amber header */
-    st7735_fill_rect(0,  0, 128, 18, COL_AMBER);
-    /* "PLEASE WAIT": 11*6=66px, x=(128-66)/2=31 */
-    st7735_draw_string(31, 5, "PLEASE WAIT", ST7735_BLACK, COL_AMBER, 1);
-    st7735_fill_rect(0, 18, 128,  2, ST7735_YELLOW);
+    draw_header("PLEASE WAIT", UI_ICON_WAIT, COL_AMBER, ST7735_BLACK,
+                ST7735_YELLOW);
+    st7735_fill_rect(0, 17, 128,  2, ST7735_YELLOW);
 
     /* Rounded content panel */
-    fill_rrect(8, 28, 112, 54, 6, COL_NAVY);
+    fill_rrect(8, 28, 112, 56, 6, COL_NAVY);
 
-    /* "Waiting for Pi" size 2 inside panel */
-    /* "Waiting": 7*12=84px, x=(128-84)/2=22 */
-    st7735_draw_string(22, 36, "Waiting", ST7735_YELLOW, COL_NAVY, 2);
-    /* "for Pi": 6*12=72px, x=(128-72)/2=28 */
-    st7735_draw_string(28, 56, "for Pi",  ST7735_YELLOW, COL_NAVY, 2);
+    draw_icon(UI_ICON_PI, 58, 33, ST7735_CYAN, COL_NAVY);
+    draw_centered_string(50, "PI LINK", ST7735_YELLOW, COL_NAVY, 2);
+    draw_centered_string(70, "Waiting", COL_LTGRAY, COL_NAVY, 1);
 
     /* Rounded progress dots (3 lit, 2 dim) */
     for (int i = 0; i < 5; i++) {
@@ -229,60 +417,65 @@ static void render_main(void)
      * updates (driven by main_needs_redraw) are flicker-free. */
     char buf[24];
 
-    /* Header: dark navy with teal accent line */
-    st7735_fill_rect(0,  0, 128, 16, COL_NAVY);
-    st7735_fill_rect(0, 16, 128,  1, COL_TEAL);
-    /* "GCS PANEL": 9*6=54px, x=(128-54)/2=37 */
-    st7735_draw_string(37, 4, "GCS PANEL", ST7735_WHITE, COL_NAVY, 1);
+    draw_header("GCS PANEL", UI_ICON_GCS, COL_NAVY, ST7735_WHITE, COL_TEAL);
 
     /* ---- Battery ---- */
-    st7735_draw_string(4, 19, "BATTERY", ST7735_GREY, ST7735_BLACK, 1);
+    fill_rrect(4, 20, 120, 33, 4, COL_CHARCOAL);
+    draw_icon(UI_ICON_BATTERY, 8, 22, ST7735_GREY, COL_CHARCOAL);
+    st7735_draw_string(24, 23, "BATTERY", ST7735_GREY, COL_CHARCOAL, 1);
     float bat_v = adc_to_volts(g_latest_adc.ch[0], BAT_DIVIDER);
     snprintf(buf, sizeof(buf), "%4.1fV", (double)bat_v);
     uint16_t bat_col = (bat_v > 23.0f) ? ST7735_GREEN :
                        (bat_v > 21.0f) ? ST7735_YELLOW : ST7735_RED;
     /* size 2: 5 chars*12=60px, x=(128-60)/2=34 */
-    st7735_draw_string(34, 28, buf, bat_col, ST7735_BLACK, 2);
+    draw_icon(UI_ICON_BATTERY, 8, 22, bat_col, COL_CHARCOAL);
+    st7735_draw_string(40, 32, buf, bat_col, COL_CHARCOAL, 2);
     /* Rounded charge bar: border → track → coloured fill */
-    fill_rrect(4,  46, 120, 8, 4, ST7735_DARKGREY);   /* border */
-    fill_rrect(5,  47, 118, 6, 3, COL_CHARCOAL);       /* track  */
+    fill_rrect(8, 47, 112, 5, 2, ST7735_DARKGREY);
+    fill_rrect(9, 48, 110, 3, 1, ST7735_BLACK);
     /* 6S range: 18.0 V (empty) – 25.2 V (full) */
-    int fill = (int)((bat_v - 18.0f) / (25.2f - 18.0f) * 116.0f);
+    int fill = (int)((bat_v - 18.0f) / (25.2f - 18.0f) * 108.0f);
     if (fill < 0)   fill = 0;
-    if (fill > 116) fill = 116;
-    if (fill > 0) fill_rrect(5, 47, fill, 6, 3, bat_col);
+    if (fill > 108) fill = 108;
+    if (fill > 0) fill_rrect(10, 48, fill, 3, 1, bat_col);
 
     /* ---- External voltage ---- */
-    st7735_draw_string(4, 57, "EXTERNAL", ST7735_GREY, ST7735_BLACK, 1);
+    fill_rrect(4, 56, 120, 28, 4, COL_CHARCOAL);
+    draw_icon(UI_ICON_POWER, 8, 60, ST7735_CYAN, COL_CHARCOAL);
+    st7735_draw_string(24, 59, "EXTERNAL", ST7735_GREY, COL_CHARCOAL, 1);
     float ext_v = adc_to_volts(g_latest_adc.ch[1], EXT_DIVIDER);
     snprintf(buf, sizeof(buf), "%4.1fV", (double)ext_v);
-    st7735_draw_string(34, 66, buf, ST7735_CYAN, ST7735_BLACK, 2);
+    st7735_draw_string(40, 68, buf, ST7735_CYAN, COL_CHARCOAL, 2);
 
     /* ---- Centered teal accent divider ---- */
-    fill_rrect(24, 83, 80, 3, 1, COL_TEAL);
+    st7735_fill_rect(0, 85, 128, 1, COL_TEAL);
 
     /* ---- Key status — inset rounded pill ---- */
     bool locked = (g_latest_digital.port_a & (1u << IOEXP_A_KEY));
     uint16_t key_col = locked ? ST7735_RED : ST7735_GREEN;
-    fill_rrect(4, 88, 120, 12, 4, key_col);
+    fill_rrect(4, 88, 58, 14, 4, key_col);
+    draw_icon(UI_ICON_KEY, 8, 89, ST7735_WHITE, key_col);
     /* "KEY: LOCKED"/"KEY:  OPEN ": 11*6=66px, x=(128-66)/2=31 */
-    st7735_draw_string(31, 91, locked ? "KEY: LOCKED" : "KEY:  OPEN ",
-                       ST7735_WHITE, key_col, 1);
+    st7735_draw_string(24, 92, locked ? "LOCK" : "OPEN", ST7735_WHITE,
+                       key_col, 1);
 
     /* ---- Switch states ---- */
-    snprintf(buf, sizeof(buf), "SW A:%02X  B:%02X",
+    fill_rrect(4, 106, 120, 18, 4, COL_DKBLUE);
+    draw_icon(UI_ICON_IO, 8, 109, COL_TEAL, COL_DKBLUE);
+    snprintf(buf, sizeof(buf), "I/O A:%02X B:%02X",
              g_latest_digital.port_a & 0xFF,
              g_latest_digital.port_b & 0xFF);
-    st7735_draw_string(4, 103, buf, COL_LTGRAY, ST7735_BLACK, 1);
+    st7735_draw_string(28, 112, buf, COL_LTGRAY, COL_DKBLUE, 1);
 
     /* ---- Pi status — inset rounded pill ---- */
     sys_state_t state = g_sys_state;
     bool connected = (state == SYS_CONNECTED || state == SYS_ACTIVE);
     uint16_t pi_col = connected ? ST7735_GREEN : COL_AMBER;
-    fill_rrect(4, 114, 120, 12, 4, pi_col);
+    fill_rrect(66, 88, 58, 14, 4, pi_col);
+    draw_icon(UI_ICON_PI, 70, 89, ST7735_WHITE, pi_col);
     /* "Pi: CONNECTED"/"Pi:  WAITING ": 13*6=78px, x=(128-78)/2=25 */
-    st7735_draw_string(25, 117, connected ? "Pi: CONNECTED" : "Pi:  WAITING ",
-                       ST7735_WHITE, pi_col, 1);
+    st7735_draw_string(86, 92, connected ? "CONN" : "WAIT", ST7735_WHITE,
+                       pi_col, 1);
 }
 
 static void render_warning(void)
@@ -348,7 +541,7 @@ static void update_batwarning(void)
 
     /* Flash "CHARGE NOW!" between white and yellow */
     uint16_t txt_col = flash ? ST7735_YELLOW : ST7735_WHITE;
-    st7735_draw_string(31, 113, "CHARGE NOW!", txt_col, ST7735_RED, 1);
+    draw_centered_string(113, "CHARGE NOW!", txt_col, ST7735_RED, 1);
 
     s_batwarning_frame++;
 }
@@ -358,11 +551,9 @@ static void render_batwarning(void)
     s_batwarning_frame = 0;
     st7735_fill_screen(COL_CHARCOAL);
 
-    /* Red header with amber accent line */
-    st7735_fill_rect(0,  0, 128, 18, ST7735_RED);
-    /* "LOW BATTERY": 11*6=66px, x=(128-66)/2=31 */
-    st7735_draw_string(31, 5, "LOW BATTERY", ST7735_WHITE, ST7735_RED, 1);
-    st7735_fill_rect(0, 18, 128,  2, COL_AMBER);
+    draw_header("LOW BATTERY", UI_ICON_BATTERY, ST7735_RED, ST7735_WHITE,
+                COL_AMBER);
+    st7735_fill_rect(0, 17, 128,  2, COL_AMBER);
 
     /* Battery icon with rounded body */
     fill_rrect( 8, 26,  96, 48, 5, ST7735_DARKGREY);  /* outer border   */
@@ -376,13 +567,13 @@ static void render_batwarning(void)
     float bat_v = adc_to_volts(g_latest_adc.ch[0], BAT_DIVIDER);
     char buf[16];
     snprintf(buf, sizeof(buf), "%4.1fV", (double)bat_v);
-    st7735_draw_string(34, 82, buf, ST7735_YELLOW, COL_CHARCOAL, 2);
+    draw_centered_string(82, buf, ST7735_YELLOW, COL_CHARCOAL, 2);
 
     /* Amber accent + red footer */
     st7735_fill_rect(0, 104, 128,  2, COL_AMBER);
     st7735_fill_rect(0, 106, 128, 22, ST7735_RED);
     /* "CHARGE NOW!": 11*6=66px, x=31 */
-    st7735_draw_string(31, 113, "CHARGE NOW!", ST7735_WHITE, ST7735_RED, 1);
+    draw_centered_string(113, "CHARGE NOW!", ST7735_WHITE, ST7735_RED, 1);
 }
 
 /* ------------------------------------------------------------------ */
@@ -409,11 +600,8 @@ static void render_periph_overview(void)
     st7735_fill_screen(ST7735_BLACK);
     char buf[24];
 
-    /* Header */
-    st7735_fill_rect(0, 0, 128, 16, COL_NAVY);
-    st7735_fill_rect(0, 16, 128, 1, COL_TEAL);
-    /* "PERIPHERALS": 11*6=66px, x=(128-66)/2=31 */
-    st7735_draw_string(31, 4, "PERIPHERALS", ST7735_WHITE, COL_NAVY, 1);
+    draw_header("PERIPHERALS", UI_ICON_DEVICE, COL_NAVY, ST7735_WHITE,
+                COL_TEAL);
 
     /* Pull fresh data from RS-485 layer */
     uint8_t addrs[PERIPH_MAX_DISPLAY];
@@ -421,24 +609,29 @@ static void render_periph_overview(void)
     uint8_t count = rs485_get_peripherals(addrs, online, PERIPH_MAX_DISPLAY);
 
     uint8_t online_count = 0;
+    if (count == 0) {
+        draw_icon(UI_ICON_DEVICE, 58, 43, ST7735_DARKGREY, ST7735_BLACK);
+        draw_centered_string(61, "NO DEVICES", COL_LTGRAY, ST7735_BLACK, 1);
+    }
+
     for (int i = 0; i < count; i++) {
-        int16_t row_y = 20 + i * 12;
+        int16_t row_y = 21 + i * 11;
         bool    is_on = online[i];
         if (is_on) online_count++;
 
+        draw_icon(periph_icon(addrs[i]), 4, row_y - 2,
+                  is_on ? COL_TEAL : ST7735_DARKGREY, ST7735_BLACK);
+
         /* Address */
         snprintf(buf, sizeof(buf), "%02X", addrs[i]);
-        st7735_draw_string(4, row_y, buf, COL_LTGRAY, ST7735_BLACK, 1);
+        st7735_draw_string(20, row_y, buf, COL_LTGRAY, ST7735_BLACK, 1);
 
         /* Name */
-        st7735_draw_string(22, row_y, periph_name(addrs[i]),
+        st7735_draw_string(36, row_y, periph_name(addrs[i]),
                            ST7735_WHITE, ST7735_BLACK, 1);
 
-        /* Status pill */
-        uint16_t pill_col = is_on ? ST7735_GREEN : ST7735_RED;
-        fill_rrect(97, row_y - 1, 27, 10, 3, pill_col);
-        st7735_draw_string(100, row_y, is_on ? "ON " : "OFF",
-                           ST7735_WHITE, pill_col, 1);
+        draw_status_dot(116, row_y, is_on ? ST7735_GREEN : ST7735_RED,
+                        ST7735_BLACK);
     }
 
     /* Footer summary */
@@ -458,17 +651,17 @@ static void render_periph_detail(void)
     st7735_fill_screen(ST7735_BLACK);
     char buf[24];
 
-    /* Header with device name */
-    st7735_fill_rect(0, 0, 128, 16, COL_NAVY);
-    st7735_fill_rect(0, 16, 128, 1, COL_TEAL);
     const char *name = periph_name(s_detail_addr);
-    int16_t tw = (int16_t)(strlen(name) * 6);
-    st7735_draw_string((128 - tw) / 2, 4, name, ST7735_WHITE, COL_NAVY, 1);
+    draw_header(name, periph_icon(s_detail_addr), COL_NAVY, ST7735_WHITE,
+                COL_TEAL);
+    int16_t tw;
 
     /* Body — layout depends on peripheral type */
     if (s_detail_len == 0) {
         /* "No data yet": 11*6=66px, x=31 */
-        st7735_draw_string(31, 50, "No data yet", COL_LTGRAY, ST7735_BLACK, 1);
+        draw_icon(periph_icon(s_detail_addr), 58, 42, ST7735_DARKGREY,
+                  ST7735_BLACK);
+        draw_centered_string(60, "No data yet", COL_LTGRAY, ST7735_BLACK, 1);
     } else {
         switch (s_detail_addr) {
 
@@ -478,7 +671,8 @@ static void render_periph_detail(void)
                     int8_t  temp_c     = (int8_t)s_detail_buf[1];
                     uint8_t faults     = s_detail_buf[2];
 
-                    st7735_draw_string(4, 22, "Brightness", COL_LTGRAY, ST7735_BLACK, 1);
+                    draw_icon(UI_ICON_LIGHTBAR, 4, 20, ST7735_CYAN, ST7735_BLACK);
+                    st7735_draw_string(20, 22, "Brightness", COL_LTGRAY, ST7735_BLACK, 1);
                     int pct = (int)((brightness * 100u) / 255u);
                     snprintf(buf, sizeof(buf), "%3d%%", pct);
                     st7735_draw_string(88, 22, buf, ST7735_WHITE, ST7735_BLACK, 1);
@@ -486,13 +680,15 @@ static void render_periph_detail(void)
                     int bw = (int)((brightness * 120u) / 255u);
                     if (bw > 0) fill_rrect(4, 32, bw, 6, 3, ST7735_CYAN);
 
-                    st7735_draw_string(4, 44, "Temp", COL_LTGRAY, ST7735_BLACK, 1);
+                    draw_icon(UI_ICON_TEMP, 4, 42, COL_LTGRAY, ST7735_BLACK);
+                    st7735_draw_string(20, 44, "Temp", COL_LTGRAY, ST7735_BLACK, 1);
                     snprintf(buf, sizeof(buf), "%d C", (int)temp_c);
                     uint16_t t_col = (temp_c < 60) ? ST7735_GREEN :
                                      (temp_c < 75) ? COL_AMBER : ST7735_RED;
                     st7735_draw_string(60, 44, buf, t_col, ST7735_BLACK, 2);
 
-                    st7735_draw_string(4, 68, "Faults", COL_LTGRAY, ST7735_BLACK, 1);
+                    draw_icon(UI_ICON_ALERT, 4, 66, COL_AMBER, ST7735_BLACK);
+                    st7735_draw_string(20, 68, "Faults", COL_LTGRAY, ST7735_BLACK, 1);
                     if (faults == 0) {
                         st7735_draw_string(60, 68, "NONE", ST7735_GREEN, ST7735_BLACK, 1);
                     } else {
@@ -513,18 +709,21 @@ static void render_periph_detail(void)
                     uint8_t  signal  = s_detail_buf[2];
                     uint8_t  status  = s_detail_buf[3];
 
-                    st7735_draw_string(4, 22, "Distance", COL_LTGRAY, ST7735_BLACK, 1);
+                    draw_icon(UI_ICON_RADAR, 4, 20, ST7735_CYAN, ST7735_BLACK);
+                    st7735_draw_string(20, 22, "Distance", COL_LTGRAY, ST7735_BLACK, 1);
                     snprintf(buf, sizeof(buf), "%u mm", (unsigned)dist_mm);
                     int16_t dw = (int16_t)(strlen(buf) * 12);
                     st7735_draw_string((128 - dw) / 2, 34, buf,
                                        ST7735_CYAN, ST7735_BLACK, 2);
 
-                    st7735_draw_string(4, 58, "Signal", COL_LTGRAY, ST7735_BLACK, 1);
+                    draw_icon(UI_ICON_SIGNAL, 4, 56, ST7735_GREEN, ST7735_BLACK);
+                    st7735_draw_string(20, 58, "Signal", COL_LTGRAY, ST7735_BLACK, 1);
                     fill_rrect(4, 68, 120, 6, 3, COL_CHARCOAL);
                     int sw = (int)((signal * 120u) / 255u);
                     if (sw > 0) fill_rrect(4, 68, sw, 6, 3, ST7735_GREEN);
 
-                    st7735_draw_string(4, 80, "Status", COL_LTGRAY, ST7735_BLACK, 1);
+                    draw_icon(UI_ICON_DEVICE, 4, 78, COL_LTGRAY, ST7735_BLACK);
+                    st7735_draw_string(20, 80, "Status", COL_LTGRAY, ST7735_BLACK, 1);
                     st7735_draw_string(60, 80, status == 0 ? "OK " : "ERR",
                                        status == 0 ? ST7735_GREEN : ST7735_RED,
                                        ST7735_BLACK, 1);
@@ -537,15 +736,20 @@ static void render_periph_detail(void)
                     uint8_t tilt   = s_detail_buf[1];
                     uint8_t moving = s_detail_buf[2];
 
-                    st7735_draw_string(4, 22, "Pan", COL_LTGRAY, ST7735_BLACK, 1);
-                    snprintf(buf, sizeof(buf), "%3d deg", (int)pan);
-                    st7735_draw_string(50, 22, buf, ST7735_CYAN, ST7735_BLACK, 2);
+                    draw_icon(UI_ICON_PANTILT, 4, 20, ST7735_CYAN, ST7735_BLACK);
+                    st7735_draw_string(20, 22, "Pan", COL_LTGRAY, ST7735_BLACK, 1);
+                    snprintf(buf, sizeof(buf), "%3d", (int)pan);
+                    st7735_draw_string(62, 22, buf, ST7735_CYAN, ST7735_BLACK, 2);
+                    st7735_draw_string(100, 28, "deg", COL_LTGRAY, ST7735_BLACK, 1);
 
-                    st7735_draw_string(4, 48, "Tilt", COL_LTGRAY, ST7735_BLACK, 1);
-                    snprintf(buf, sizeof(buf), "%3d deg", (int)tilt);
-                    st7735_draw_string(50, 48, buf, ST7735_CYAN, ST7735_BLACK, 2);
+                    draw_icon(UI_ICON_PANTILT, 4, 46, ST7735_CYAN, ST7735_BLACK);
+                    st7735_draw_string(20, 48, "Tilt", COL_LTGRAY, ST7735_BLACK, 1);
+                    snprintf(buf, sizeof(buf), "%3d", (int)tilt);
+                    st7735_draw_string(62, 48, buf, ST7735_CYAN, ST7735_BLACK, 2);
+                    st7735_draw_string(100, 54, "deg", COL_LTGRAY, ST7735_BLACK, 1);
 
-                    st7735_draw_string(4, 76, "Motion", COL_LTGRAY, ST7735_BLACK, 1);
+                    draw_icon(UI_ICON_WAIT, 4, 74, COL_AMBER, ST7735_BLACK);
+                    st7735_draw_string(20, 76, "Motion", COL_LTGRAY, ST7735_BLACK, 1);
                     uint16_t m_col = moving ? COL_AMBER : ST7735_GREEN;
                     fill_rrect(60, 74, 40, 12, 4, m_col);
                     st7735_draw_string(64, 77, moving ? "MOVE" : "IDLE",
