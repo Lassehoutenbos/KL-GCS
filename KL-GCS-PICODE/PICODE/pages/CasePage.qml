@@ -19,11 +19,56 @@ Rectangle {
     }
 
     property bool screensLinked: true
-    property bool use3D: false
     property string configPath: "case_twin_config.json"
     property string configStatus: ""
     property var selectedTwinSensor: ({})
     property bool sensorModalVisible: false
+
+    // ── Sensor history graph state ───────────────────────────────────────────
+    property int historyWindowMs: 15 * 60 * 1000    // default: 15 min
+    property string historyGroup: "TEMPS"
+    property int historyTick: 0                      // bumped to force refresh
+
+    Timer {
+        interval: 2000; running: true; repeat: true
+        onTriggered: historyTick++
+    }
+
+    readonly property var historyGroups: ({
+        "TEMPS": [
+            { key: "tempCpuPi",  label: "PI CPU",        color: Theme.accentYellow },
+            { key: "tempCaseA",  label: "PCB POWER",     color: "#7fd6ff" },
+            { key: "tempCaseB",  label: "RPI ZONE",      color: "#62d48f" },
+            { key: "tempCaseC",  label: "CHARGER",       color: "#ffb347" },
+            { key: "tempCaseD",  label: "VRX",           color: "#ff8a8a" }
+        ],
+        "POWER": [
+            { key: "batteryVoltage", label: "BATTERY V",  color: Theme.accentYellow },
+            { key: "extVoltage",     label: "EXT V",      color: Theme.accentBlue }
+        ],
+        "LINK": [
+            { key: "mavlinkRssi", label: "MAVLINK RSSI", color: Theme.accentBlue },
+            { key: "mavlinkSnr",  label: "MAVLINK SNR",  color: Theme.accentYellow },
+            { key: "loraRssi",    label: "LORA RSSI",    color: "#62d48f" },
+            { key: "loraSnr",     label: "LORA SNR",     color: "#ffb347" }
+        ]
+    })
+
+    function buildHistorySeries() {
+        var defs = historyGroups[historyGroup] || []
+        // historyTick reference forces this to re-evaluate
+        var _t = historyTick
+        var out = []
+        for (var i = 0; i < defs.length; i++) {
+            var d = defs[i]
+            out.push({
+                color: d.color,
+                label: d.label,
+                data: SensorHistory.samples(d.key, historyWindowMs, 600)
+            })
+        }
+        return out
+    }
 
     // Stored ratios for proportional master-slider scaling
     property var brightnessRatios: [1.0, 1.0, 1.0, 1.0, 1.0]
@@ -168,7 +213,7 @@ Rectangle {
                             color: Theme.textPrimary
                             font.pixelSize: Theme.fontUnit
                             font.weight: Font.SemiBold
-                            font.family: "monospace"
+                            font.family: Theme.fontMono
                             Layout.preferredWidth: 52
                             horizontalAlignment: Text.AlignRight
                         }
@@ -378,53 +423,18 @@ Rectangle {
                         color: Theme.textSecondary; font.pixelSize: Theme.fontPageTitle; font.weight: Font.SemiBold; font.letterSpacing: 0.8
                     }
                     Item { Layout.fillWidth: true }
-                    // 2D / 3D toggle
-                    Repeater {
-                        model: ["2D", "3D"]
-                        Rectangle {
-                            required property string modelData
-                            required property int index
-                            width: 36; height: 22; radius: 3
-                            color: (use3D ? index === 1 : index === 0) ? Theme.accentBlue : Theme.bgElevated
-                            border.color: (use3D ? index === 1 : index === 0) ? Theme.accentBlue : Theme.border
-                            border.width: 1
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData
-                                color: (use3D ? index === 1 : index === 0) ? Theme.bgPrimary : Theme.textSecondary
-                                font.pixelSize: Theme.fontSectionLabel
-                                font.weight: Font.SemiBold
-                            }
-                            MouseArea { anchors.fill: parent; onClicked: use3D = (index === 1) }
-                        }
-                    }
                 }
             }
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
             CaseView {
                 id: caseOverview
-                visible: !use3D
                 Layout.fillWidth: true
-                Layout.preferredHeight: 250
+                Layout.preferredHeight: 560
                 Layout.margins: 4
                 onSensorDetailsRequested: function(sensor) {
                     selectedTwinSensor = sensor
                     sensorModalVisible = true
-                }
-            }
-
-            Loader {
-                active: use3D
-                visible: use3D
-                Layout.fillWidth: true
-                Layout.preferredHeight: 350
-                Layout.margins: 4
-                sourceComponent: CaseView3D {
-                    onSensorDetailsRequested: function(sensor) {
-                        selectedTwinSensor = sensor
-                        sensorModalVisible = true
-                    }
                 }
             }
 
@@ -546,7 +556,7 @@ Rectangle {
                             Item { Layout.fillWidth: true }
                             Text {
                                 text: modelData.valid ? modelData.temp.toFixed(0) + "°C" : "—"
-                                color: Theme.textPrimary; font.pixelSize: Theme.fontValueSmall; font.weight: Font.Bold; font.family: "monospace"
+                                color: Theme.textPrimary; font.pixelSize: Theme.fontValueSmall; font.weight: Font.Bold; font.family: Theme.fontMono
                             }
                         }
                     }
@@ -575,7 +585,130 @@ Rectangle {
                         Item { Layout.fillWidth: true }
                         Text {
                             text: slTempBadge.slDev ? slTempBadge.slDev.temp + "°C" : "—"
-                            color: Theme.textPrimary; font.pixelSize: Theme.fontValueSmall; font.weight: Font.Bold; font.family: "monospace"
+                            color: Theme.textPrimary; font.pixelSize: Theme.fontValueSmall; font.weight: Font.Bold; font.family: Theme.fontMono
+                        }
+                    }
+                }
+            }
+
+            // ── SENSOR HISTORY ───────────────────────────────────────────────
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border; Layout.topMargin: 4 }
+            Item {
+                Layout.fillWidth: true; height: 32
+                Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 3; color: Theme.accentBlue }
+                RowLayout {
+                    anchors { fill: parent; leftMargin: 11; rightMargin: 12 }
+                    spacing: 8
+                    Text {
+                        text: "SENSOR HISTORY"
+                        color: Theme.textSecondary; font.pixelSize: Theme.fontPageTitle; font.weight: Font.SemiBold; font.letterSpacing: 0.8
+                    }
+                    Item { Layout.fillWidth: true }
+                    Text {
+                        text: "stored at ~/.picode/history.db · 7d retention"
+                        color: Theme.textDisabled; font.pixelSize: 9; font.family: Theme.fontMono
+                    }
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            // Group + window selector
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.margins: 12
+                spacing: 6
+
+                // Group tabs
+                Repeater {
+                    model: ["TEMPS", "POWER", "LINK"]
+                    Rectangle {
+                        Layout.preferredWidth: 84; Layout.preferredHeight: 32; radius: 3
+                        color: historyGroup === modelData ? Qt.rgba(0.89, 0.82, 0.29, 0.12) : Theme.bgElevated
+                        border.color: historyGroup === modelData ? Theme.accentYellow : Theme.border
+                        border.width: historyGroup === modelData ? 2 : 1
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData
+                            color: historyGroup === modelData ? Theme.accentYellow : Theme.textSecondary
+                            font.pixelSize: 11; font.weight: Font.SemiBold
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: historyGroup = modelData }
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                // Window tabs
+                Repeater {
+                    model: [
+                        { lbl: "5m",  ms: 5*60*1000 },
+                        { lbl: "15m", ms: 15*60*1000 },
+                        { lbl: "1h",  ms: 60*60*1000 },
+                        { lbl: "6h",  ms: 6*60*60*1000 },
+                        { lbl: "24h", ms: 24*60*60*1000 },
+                        { lbl: "7d",  ms: 7*24*60*60*1000 }
+                    ]
+                    Rectangle {
+                        Layout.preferredWidth: 50; Layout.preferredHeight: 32; radius: 3
+                        color: historyWindowMs === modelData.ms ? Qt.rgba(0.50, 0.84, 1.0, 0.12) : Theme.bgElevated
+                        border.color: historyWindowMs === modelData.ms ? Theme.accentBlue : Theme.border
+                        border.width: historyWindowMs === modelData.ms ? 2 : 1
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData.lbl
+                            color: historyWindowMs === modelData.ms ? Theme.accentBlue : Theme.textSecondary
+                            font.pixelSize: 10; font.weight: Font.SemiBold; font.family: Theme.fontMono
+                        }
+                        MouseArea { anchors.fill: parent; onClicked: historyWindowMs = modelData.ms }
+                    }
+                }
+            }
+
+            // Chart
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 240
+                Layout.leftMargin: 12; Layout.rightMargin: 12
+                color: Theme.bgSecondary; border.color: Theme.border; border.width: 1; radius: 4
+
+                TimeSeriesChart {
+                    id: historyChart
+                    anchors { fill: parent; margins: 6 }
+                    series: buildHistorySeries()
+                    windowMs: historyWindowMs
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    visible: {
+                        var s = historyChart.series
+                        if (!s || s.length === 0) return true
+                        for (var i = 0; i < s.length; i++)
+                            if ((s[i].data || []).length > 1) return false
+                        return true
+                    }
+                    text: "Collecting samples… (1 Hz, ~10s for first points)"
+                    color: Theme.textDisabled; font.pixelSize: 11; font.family: Theme.fontMono
+                }
+            }
+
+            // Legend
+            Flow {
+                Layout.fillWidth: true
+                Layout.leftMargin: 12; Layout.rightMargin: 12
+                Layout.topMargin: 6; Layout.bottomMargin: 4
+                spacing: 12
+
+                Repeater {
+                    model: historyGroups[historyGroup] || []
+                    Row {
+                        spacing: 6
+                        Rectangle { width: 10; height: 3; radius: 1; color: modelData.color; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            text: modelData.label
+                            color: Theme.textDisabled
+                            font.pixelSize: 10; font.family: Theme.fontMono
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                     }
                 }
@@ -679,13 +812,13 @@ Rectangle {
                 color: Theme.textPrimary
                 font.pixelSize: Theme.fontValueMedium
                 font.weight: Font.Bold
-                font.family: "monospace"
+                font.family: Theme.fontMono
             }
             Text {
                 text: "KEY: " + (selectedTwinSensor && selectedTwinSensor.sensorKey ? selectedTwinSensor.sensorKey : "—")
                 color: Theme.textSecondary
                 font.pixelSize: Theme.fontSectionLabel
-                font.family: "monospace"
+                font.family: Theme.fontMono
             }
             Text {
                 text: {

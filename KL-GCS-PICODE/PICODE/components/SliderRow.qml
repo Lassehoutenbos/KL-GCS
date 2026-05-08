@@ -88,7 +88,7 @@ Rectangle {
             text: sliderRowRoot.value + sliderRowRoot.unit
             color: Theme.textPrimary
             font.pixelSize: Theme.fontUnit
-            font.family: "monospace"
+            font.family: Theme.fontMono
             Layout.preferredWidth: sliderRowRoot.valueWidth
             horizontalAlignment: Text.AlignRight
         }

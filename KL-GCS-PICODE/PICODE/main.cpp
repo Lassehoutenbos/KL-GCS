@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QScreen>
@@ -8,6 +9,7 @@
 #include "backend/gcsstate.h"
 #include "backend/picolink.h"
 #include "backend/mavlinklink.h"
+#include "backend/sensorhistory.h"
 
 static void messageHandler(QtMsgType type, const QMessageLogContext &, const QString &msg)
 {
@@ -26,13 +28,20 @@ int main(int argc, char *argv[])
     qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
 
     QGuiApplication app(argc, argv);
+    app.setApplicationName("PICODE");
+    app.setOrganizationName("KL-Systems");
+    app.setWindowIcon(QIcon(":/qt/qml/PICODE/assets/logos/Favicon.png"));
 
     qmlRegisterSingletonInstance("PICODE", 1, 0, "GCSState", GCSState::instance());
+
+    SensorHistory *history = new SensorHistory(GCSState::instance(), &app);
+    qmlRegisterSingletonInstance("PICODE", 1, 0, "SensorHistory", history);
 
     PicoLink  *pico = new PicoLink(GCSState::instance(), &app);
     MavlinkLink *mav = new MavlinkLink(GCSState::instance(), &app);
     pico->start();
     mav->start();
+    history->start();
 
     QList<QScreen *> screens = app.screens();
 

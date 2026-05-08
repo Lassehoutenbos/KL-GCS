@@ -94,6 +94,35 @@ class GCSState : public QObject {
     Q_PROPERTY(QVariantList caseTwinHotspots READ caseTwinHotspots NOTIFY caseTwinConfigChanged)
     Q_PROPERTY(QString caseTwinConfigLastError READ caseTwinConfigLastError NOTIFY caseTwinConfigChanged)
 
+    // --- Module GPS (USB NMEA) ---
+    Q_PROPERTY(bool    modGpsConnected READ modGpsConnected NOTIFY moduleGpsChanged)
+    Q_PROPERTY(QString modGpsPort      READ modGpsPort      NOTIFY moduleGpsChanged)
+    Q_PROPERTY(double  modGpsLat       READ modGpsLat       NOTIFY moduleGpsChanged)
+    Q_PROPERTY(double  modGpsLon       READ modGpsLon       NOTIFY moduleGpsChanged)
+    Q_PROPERTY(double  modGpsAlt       READ modGpsAlt       NOTIFY moduleGpsChanged)
+    Q_PROPERTY(int     modGpsSats      READ modGpsSats      NOTIFY moduleGpsChanged)
+    Q_PROPERTY(int     modGpsSatsTracked READ modGpsSatsTracked NOTIFY moduleGpsChanged)
+    Q_PROPERTY(QString modGpsFixType   READ modGpsFixType   NOTIFY moduleGpsChanged)
+    Q_PROPERTY(double  modGpsHdop      READ modGpsHdop      NOTIFY moduleGpsChanged)
+    Q_PROPERTY(double  modGpsSpeed     READ modGpsSpeed     NOTIFY moduleGpsChanged)
+    Q_PROPERTY(double  modGpsHeading   READ modGpsHeading   NOTIFY moduleGpsChanged)
+    Q_PROPERTY(QVariantList modGpsConstellation READ modGpsConstellation NOTIFY moduleGpsChanged)
+
+    // --- LoRa link (USB) ---
+    Q_PROPERTY(bool    loraConnected   READ loraConnected   NOTIFY loraChanged)
+    Q_PROPERTY(QString loraPort        READ loraPort        NOTIFY loraChanged)
+    Q_PROPERTY(int     loraRssi        READ loraRssi        NOTIFY loraChanged)
+    Q_PROPERTY(int     loraSnr         READ loraSnr         NOTIFY loraChanged)
+    Q_PROPERTY(double  loraFrequencyMhz READ loraFrequencyMhz NOTIFY loraChanged)
+    Q_PROPERTY(int     loraTxPower     READ loraTxPower     NOTIFY loraChanged)
+    Q_PROPERTY(int     loraSpreadingFactor READ loraSpreadingFactor NOTIFY loraChanged)
+    Q_PROPERTY(int     loraBandwidthKhz READ loraBandwidthKhz NOTIFY loraChanged)
+    Q_PROPERTY(quint64 loraTxBytes     READ loraTxBytes     NOTIFY loraChanged)
+    Q_PROPERTY(quint64 loraRxBytes     READ loraRxBytes     NOTIFY loraChanged)
+    Q_PROPERTY(int     loraTxPacketsPerSec READ loraTxPacketsPerSec NOTIFY loraChanged)
+    Q_PROPERTY(int     loraRxPacketsPerSec READ loraRxPacketsPerSec NOTIFY loraChanged)
+    Q_PROPERTY(QVariantList loraRecentMessages READ loraRecentMessages NOTIFY loraChanged)
+
 public:
     static GCSState *instance();
 
@@ -167,6 +196,33 @@ public:
     QVariantList caseTwinHotspots() const { return m_caseTwinHotspots; }
     QString caseTwinConfigLastError() const { return m_caseTwinConfigLastError; }
 
+    bool    modGpsConnected() const { return m_modGpsConnected; }
+    QString modGpsPort()      const { return m_modGpsPort; }
+    double  modGpsLat()       const { return m_modGpsLat; }
+    double  modGpsLon()       const { return m_modGpsLon; }
+    double  modGpsAlt()       const { return m_modGpsAlt; }
+    int     modGpsSats()      const { return m_modGpsSats; }
+    int     modGpsSatsTracked() const { return m_modGpsSatsTracked; }
+    QString modGpsFixType()   const { return m_modGpsFixType; }
+    double  modGpsHdop()      const { return m_modGpsHdop; }
+    double  modGpsSpeed()     const { return m_modGpsSpeed; }
+    double  modGpsHeading()   const { return m_modGpsHeading; }
+    QVariantList modGpsConstellation() const { return m_modGpsConstellation; }
+
+    bool    loraConnected()   const { return m_loraConnected; }
+    QString loraPort()        const { return m_loraPort; }
+    int     loraRssi()        const { return m_loraRssi; }
+    int     loraSnr()         const { return m_loraSnr; }
+    double  loraFrequencyMhz() const { return m_loraFrequencyMhz; }
+    int     loraTxPower()     const { return m_loraTxPower; }
+    int     loraSpreadingFactor() const { return m_loraSpreadingFactor; }
+    int     loraBandwidthKhz() const { return m_loraBandwidthKhz; }
+    quint64 loraTxBytes()     const { return m_loraTxBytes; }
+    quint64 loraRxBytes()     const { return m_loraRxBytes; }
+    int     loraTxPacketsPerSec() const { return m_loraTxPacketsPerSec; }
+    int     loraRxPacketsPerSec() const { return m_loraRxPacketsPerSec; }
+    QVariantList loraRecentMessages() const { return m_loraRecentMessages; }
+
 public slots:
     void updateDroneState(double alt, double spd, double hdg, double vspd,
                           double pitch, double roll, double yaw);
@@ -194,6 +250,11 @@ public slots:
     void updateDronePosition(double lat, double lon);
     void updateHdop(double hdop);
 
+    void updateModuleGps(const QVariantMap &fields);
+    void updateLoraStatus(const QVariantMap &fields);
+    Q_INVOKABLE void appendLoraMessage(const QString &dir, const QString &text);
+    Q_INVOKABLE QVariantMap sensorSnapshot() const;
+
     void setBrightnessScreenL(int v);
     void setBrightnessScreenR(int v);
     void setBrightnessLed(int v);
@@ -216,6 +277,10 @@ public slots:
     Q_INVOKABLE bool saveCaseTwinConfig(const QString &path);
     Q_INVOKABLE void resetCaseTwinConfig();
 
+    Q_INVOKABLE bool saveMissionToFile(const QString &path);
+    Q_INVOKABLE bool loadMissionFromFile(const QString &path);
+    Q_INVOKABLE QString missionLastError() const { return m_missionLastError; }
+
 signals:
     void droneStateChanged();
     void dronePositionChanged();
@@ -233,6 +298,8 @@ signals:
     void statusMessagesChanged();
     void switchStateChanged();
     void caseTwinConfigChanged();
+    void moduleGpsChanged();
+    void loraChanged();
     void armSwitchToggled(bool on);
     void buttonPressed(int buttonId);
     void buttonReleased(int buttonId);
@@ -319,4 +386,33 @@ private:
     QVariantList m_params;
     QVariantList m_caseTwinHotspots;
     QString m_caseTwinConfigLastError;
+
+    bool    m_modGpsConnected = false;
+    QString m_modGpsPort;
+    double  m_modGpsLat       = 0.0;
+    double  m_modGpsLon       = 0.0;
+    double  m_modGpsAlt       = 0.0;
+    int     m_modGpsSats      = 0;
+    int     m_modGpsSatsTracked = 0;
+    QString m_modGpsFixType   = "NO-FIX";
+    double  m_modGpsHdop      = 99.9;
+    double  m_modGpsSpeed     = 0.0;
+    double  m_modGpsHeading   = 0.0;
+    QVariantList m_modGpsConstellation;
+
+    bool    m_loraConnected   = false;
+    QString m_loraPort;
+    int     m_loraRssi        = -127;
+    int     m_loraSnr         = 0;
+    double  m_loraFrequencyMhz = 868.0;
+    int     m_loraTxPower     = 14;
+    int     m_loraSpreadingFactor = 7;
+    int     m_loraBandwidthKhz = 125;
+    quint64 m_loraTxBytes     = 0;
+    quint64 m_loraRxBytes     = 0;
+    int     m_loraTxPacketsPerSec = 0;
+    int     m_loraRxPacketsPerSec = 0;
+    QVariantList m_loraRecentMessages;
+
+    QString m_missionLastError;
 };

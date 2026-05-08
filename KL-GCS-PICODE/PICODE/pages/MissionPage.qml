@@ -15,40 +15,17 @@ Rectangle {
     property bool poiMode: false
     property int selectedPoiIndex: -1
     property bool draggingMarker: false
-    property string missionProfile: "WAYPOINT"
+    property string missionFilePath: "mission.json"
+    property string missionFileStatus: ""
 
-    property var profileSettings: ({
-        "WAYPOINT": { cruise: 14, alt: 35, loiter: 8, wpType: "WAYPOINT" },
-        "LOITER":   { cruise: 10, alt: 40, loiter: 20, wpType: "LOITER" },
-        "CIRCLE":   { cruise: 9,  alt: 42, loiter: 18, wpType: "LOITER" },
-        "SPLINE":   { cruise: 12, alt: 38, loiter: 8, wpType: "SPLINE_WP" },
-        "LAND":     { cruise: 8,  alt: 18, loiter: 5, wpType: "LAND" }
-    })
+    readonly property int defaultAlt: 30
 
     readonly property var defaultCenter: QtPositioning.coordinate(52.3731, 4.8965)
 
     readonly property var wpTypes: ["TAKEOFF", "WAYPOINT", "LOITER", "SPLINE_WP", "LAND", "ROI"]
 
-    function profileDefaultType() {
-        return profileSettings[missionProfile].wpType
-    }
-
-    function profileDefaultAlt() {
-        return profileSettings[missionProfile].alt
-    }
-
-    function updateProfileSetting(key, value) {
-        var next = {}
-        for (var k in profileSettings) {
-            next[k] = {
-                cruise: profileSettings[k].cruise,
-                alt: profileSettings[k].alt,
-                loiter: profileSettings[k].loiter,
-                wpType: profileSettings[k].wpType
-            }
-        }
-        next[missionProfile][key] = value
-        profileSettings = next
+    function defaultWpType(isFirst) {
+        return isFirst ? "TAKEOFF" : "WAYPOINT"
     }
 
     function updateWaypoint(index, key, value) {
@@ -124,9 +101,9 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // ── LEFT: Editable map  640px ─────────────────────────────────────────
+        // ── LEFT: Editable map  520px ─────────────────────────────────────────
         Item {
-            Layout.preferredWidth: 640
+            Layout.preferredWidth: 520
             Layout.fillHeight: true
 
             Map {
@@ -159,8 +136,8 @@ Rectangle {
                             var wps = []
                             for (var i = 0; i < GCSState.waypoints.length; i++)
                                 wps.push(GCSState.waypoints[i])
-                            var wpType = wps.length === 0 ? "TAKEOFF" : profileDefaultType()
-                            wps.push({ lat: coord.latitude, lon: coord.longitude, alt: profileDefaultAlt(), type: wpType })
+                            var wpType = defaultWpType(wps.length === 0)
+                            wps.push({ lat: coord.latitude, lon: coord.longitude, alt: defaultAlt, type: wpType })
                             GCSState.waypoints = wps
                             selectedWpIndex = wps.length - 1
                         }
@@ -185,7 +162,7 @@ Rectangle {
                     path: computePath()
                 }
 
-                // WP markers (draggable)
+                // WP markers (draggable — continuous coord update, no drift)
                 MapItemView {
                     model: GCSState.waypoints
                     delegate: MapQuickItem {
@@ -209,20 +186,24 @@ Rectangle {
                             }
                             MouseArea {
                                 anchors.fill: parent
-                                drag.target: parent
                                 preventStealing: true
-                                onClicked: { selectedWpIndex = index; selectedPoiIndex = -1 }
-                                onPressed: draggingMarker = true
-                                onReleased: {
-                                    draggingMarker = false
-                                    // Convert final position back to coordinate
-                                    var itemPos = mapToItem(missionMap, parent.x + 20, parent.y + 20)
-                                    var newCoord = missionMap.toCoordinate(Qt.point(itemPos.x, itemPos.y))
-                                    if (newCoord.isValid) {
-                                        updateWaypoint(index, "lat", newCoord.latitude)
-                                        updateWaypoint(index, "lon", newCoord.longitude)
+                                property bool didDrag: false
+                                onPressed: {
+                                    draggingMarker = true
+                                    didDrag = false
+                                    selectedWpIndex = index; selectedPoiIndex = -1
+                                }
+                                onPositionChanged: function(mouse) {
+                                    if (!pressed) return
+                                    didDrag = true
+                                    var p = mapToItem(missionMap, mouse.x, mouse.y)
+                                    var c = missionMap.toCoordinate(Qt.point(p.x, p.y))
+                                    if (c.isValid) {
+                                        updateWaypoint(index, "lat", c.latitude)
+                                        updateWaypoint(index, "lon", c.longitude)
                                     }
                                 }
+                                onReleased: draggingMarker = false
                             }
                         }
                     }
@@ -252,7 +233,21 @@ Rectangle {
                             }
                             MouseArea {
                                 anchors.fill: parent
-                                onClicked: { selectedPoiIndex = index; selectedWpIndex = -1 }
+                                preventStealing: true
+                                onPressed: {
+                                    draggingMarker = true
+                                    selectedPoiIndex = index; selectedWpIndex = -1
+                                }
+                                onPositionChanged: function(mouse) {
+                                    if (!pressed) return
+                                    var p = mapToItem(missionMap, mouse.x, mouse.y)
+                                    var c = missionMap.toCoordinate(Qt.point(p.x, p.y))
+                                    if (c.isValid) {
+                                        updatePoi(index, "lat", c.latitude)
+                                        updatePoi(index, "lon", c.longitude)
+                                    }
+                                }
+                                onReleased: draggingMarker = false
                             }
                         }
                     }
@@ -332,96 +327,11 @@ Rectangle {
                         text: GCSState.waypoints.length + " WP"
                             + (GCSState.pois.length > 0 ? "  " + GCSState.pois.length + " POI" : "")
                         color: GCSState.waypoints.length > 0 ? Theme.accentYellow : Theme.textDisabled
-                        font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: "monospace"
+                        font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: Theme.fontMono
                     }
                 }
             }
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 124
-                color: Theme.bgSecondary
-                border.color: Theme.border
-                border.width: 1
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 6
-
-                    Text {
-                        text: "MODE PROFILES"
-                        color: Theme.textSecondary
-                        font.pixelSize: Theme.fontSectionLabel
-                        font.weight: Font.SemiBold
-                        font.letterSpacing: 0.6
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        Repeater {
-                            model: ["WAYPOINT", "LOITER", "CIRCLE", "SPLINE", "LAND"]
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: touchTarget
-                                radius: 3
-                                property bool selected: missionProfile === modelData
-                                color: selected ? Qt.rgba(Theme.accentYellow.r, Theme.accentYellow.g, Theme.accentYellow.b, 0.12) : Theme.bgElevated
-                                border.color: selected ? Theme.accentYellow : Theme.border
-                                border.width: selected ? 2 : 1
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData
-                                    color: parent.selected ? Theme.accentYellow : Theme.textSecondary
-                                    font.pixelSize: 11
-                                    font.weight: Font.SemiBold
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: missionProfile = modelData
-                                }
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-
-                        Text { text: "CRUISE SPEED"; color: Theme.textDisabled; font.pixelSize: 10; Layout.preferredWidth: 78 }
-                        Slider {
-                            id: speedProfileSlider
-                            from: 4; to: 30; stepSize: 1
-                            value: profileSettings[missionProfile].cruise
-                            height: touchTarget
-                            Layout.fillWidth: true
-                            onMoved: updateProfileSetting("cruise", Math.round(value))
-                        }
-                        Text {
-                            text: profileSettings[missionProfile].cruise + "m/s"
-                            color: Theme.accentBlue
-                            font.pixelSize: 10
-                            font.family: "monospace"
-                            Layout.preferredWidth: 50
-                            horizontalAlignment: Text.AlignRight
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        Text {
-                            text: "WAYPOINT TYPE " + profileDefaultType() + "   ALTITUDE " + profileSettings[missionProfile].alt + "m   LOITER TIME " + profileSettings[missionProfile].loiter + "s"
-                            color: Theme.textSecondary
-                            font.pixelSize: 10
-                            font.family: "monospace"
-                            Layout.fillWidth: true
-                        }
-                    }
-                }
-            }
 
             // WP + POI list
             ListView {
@@ -434,7 +344,7 @@ Rectangle {
 
                 delegate: Rectangle {
                     width: wpEditor.width
-                    height: selectedWpIndex === index ? 230 : 84
+                    height: selectedWpIndex === index ? 240 : 76
                     Behavior on height { NumberAnimation { duration: 120 } }
                     color: selectedWpIndex === index ? Qt.rgba(0.89, 0.82, 0.29, 0.06) : (index % 2 === 0 ? Theme.bgPrimary : Theme.bgSecondary)
                     border.color: selectedWpIndex === index ? Theme.accentYellow : Theme.border
@@ -457,7 +367,7 @@ Rectangle {
                             Layout.fillWidth: true; spacing: 8
                             Text {
                                 text: "WP" + (index + 1)
-                                color: Theme.accentYellow; font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: "monospace"
+                                color: Theme.accentYellow; font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: Theme.fontMono
                                 Layout.preferredWidth: 36
                             }
                             Text {
@@ -468,13 +378,13 @@ Rectangle {
                             }
                             Text {
                                 text: modelData.alt !== undefined ? modelData.alt + " m" : ""
-                                color: Theme.accentBlue; font.pixelSize: Theme.fontSectionLabel; font.family: "monospace"
+                                color: Theme.accentBlue; font.pixelSize: Theme.fontSectionLabel; font.family: Theme.fontMono
                             }
                         }
                         Text {
                             text: (modelData.lat !== undefined ? modelData.lat.toFixed(5) : "--")
                                   + ", " + (modelData.lon !== undefined ? modelData.lon.toFixed(5) : "--")
-                            color: Theme.textDisabled; font.pixelSize: 10; font.family: "monospace"
+                            color: Theme.textDisabled; font.pixelSize: 10; font.family: Theme.fontMono
                         }
 
                         // ── EXPANDED EDIT CONTROLS ──────────────────────────
@@ -547,7 +457,7 @@ Rectangle {
 
                                 Text {
                                     text: (modelData.alt !== undefined ? modelData.alt : 20) + "m"
-                                    color: Theme.accentBlue; font.pixelSize: 10; font.family: "monospace"; font.weight: Font.Bold
+                                    color: Theme.accentBlue; font.pixelSize: 10; font.family: Theme.fontMono; font.weight: Font.Bold
                                     Layout.preferredWidth: 36
                                     horizontalAlignment: Text.AlignRight
                                 }
@@ -563,7 +473,7 @@ Rectangle {
                                 TextField {
                                     Layout.fillWidth: true; height: touchTarget
                                     text: modelData.lat !== undefined ? modelData.lat.toFixed(6) : ""
-                                    color: Theme.textPrimary; font.pixelSize: 10; font.family: "monospace"
+                                    color: Theme.textPrimary; font.pixelSize: 10; font.family: Theme.fontMono
                                     background: Rectangle { color: Theme.bgElevated; border.color: Theme.border; radius: 2 }
                                     onEditingFinished: {
                                         var v = parseFloat(text)
@@ -575,7 +485,7 @@ Rectangle {
                                 TextField {
                                     Layout.fillWidth: true; height: touchTarget
                                     text: modelData.lon !== undefined ? modelData.lon.toFixed(6) : ""
-                                    color: Theme.textPrimary; font.pixelSize: 10; font.family: "monospace"
+                                    color: Theme.textPrimary; font.pixelSize: 10; font.family: Theme.fontMono
                                     background: Rectangle { color: Theme.bgElevated; border.color: Theme.border; radius: 2 }
                                     onEditingFinished: {
                                         var v = parseFloat(text)
@@ -635,7 +545,7 @@ Rectangle {
                             }
                             Text {
                                 text: modelData.alt + " m"
-                                color: Theme.accentBlue; font.pixelSize: Theme.fontSectionLabel; font.family: "monospace"
+                                color: Theme.accentBlue; font.pixelSize: Theme.fontSectionLabel; font.family: Theme.fontMono
                             }
                         }
                         RowLayout {
@@ -643,14 +553,14 @@ Rectangle {
                             Text {
                                 text: (modelData.lat !== undefined ? modelData.lat.toFixed(5) : "--")
                                       + ", " + (modelData.lon !== undefined ? modelData.lon.toFixed(5) : "--")
-                                color: Theme.textDisabled; font.pixelSize: 10; font.family: "monospace"
+                                color: Theme.textDisabled; font.pixelSize: 10; font.family: Theme.fontMono
                             }
                             // Height edit (compact)
                             Text { text: "H:"; color: Theme.textSecondary; font.pixelSize: 9 }
                             TextField {
                                 width: 64; height: 32
                                 text: modelData.alt !== undefined ? modelData.alt.toString() : "20"
-                                color: Theme.textPrimary; font.pixelSize: 10; font.family: "monospace"
+                                color: Theme.textPrimary; font.pixelSize: 10; font.family: Theme.fontMono
                                 background: Rectangle { color: Theme.bgElevated; border.color: Theme.border; radius: 2 }
                                 onEditingFinished: {
                                     var v = parseFloat(text)
@@ -669,7 +579,8 @@ Rectangle {
 
             // ADD / DEL / POI buttons
             Rectangle {
-                Layout.fillWidth: true; height: 72
+                Layout.fillWidth: true
+                Layout.preferredHeight: 72
                 color: Theme.bgSecondary
 
                 RowLayout {
@@ -690,7 +601,7 @@ Rectangle {
                                 var wps = []
                                 for (var i = 0; i < GCSState.waypoints.length; i++)
                                     wps.push(GCSState.waypoints[i])
-                                wps.push({ lat: missionMap.center.latitude, lon: missionMap.center.longitude, alt: profileDefaultAlt(), type: profileDefaultType() })
+                                wps.push({ lat: missionMap.center.latitude, lon: missionMap.center.longitude, alt: defaultAlt, type: defaultWpType(wps.length === 0) })
                                 GCSState.waypoints = wps
                                 selectedWpIndex = wps.length - 1
                                 poiMode = false
@@ -753,46 +664,131 @@ Rectangle {
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            // UPLOAD / DOWNLOAD / CLEAR
-            Repeater {
-                model: [
-                    { label: "UPLOAD TO DRONE",    action: "upload",   accent: Theme.accentBlue  },
-                    { label: "DOWNLOAD FROM DRONE", action: "download", accent: Theme.accentBlue  },
-                    { label: "CLEAR MISSION",       action: "clear",    accent: Theme.statusCrit  }
-                ]
-                Rectangle {
-                    id: missionActBtn
-                    Layout.fillWidth: true; height: 72
-                    property color accentColor: modelData.accent
-                    color: missionActMa.pressed ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.08) : Theme.bgElevated
-                    border.color: missionActMa.pressed ? accentColor : Theme.border; border.width: 1
-                    Behavior on color { ColorAnimation { duration: 80 } }
-                    Behavior on border.color { ColorAnimation { duration: 80 } }
+            // FILE: path + SAVE / LOAD
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 60
+                color: Theme.bgSecondary
+                border.color: Theme.border; border.width: 1
 
-                    // top accent line
-                    Rectangle {
-                        anchors { top: parent.top; left: parent.left; right: parent.right }
-                        height: 2
-                        color: missionActBtn.accentColor
-                        opacity: missionActMa.pressed ? 0.8 : 0.2
-                        Behavior on opacity { NumberAnimation { duration: 80 } }
+                ColumnLayout {
+                    anchors { fill: parent; margins: 6 }
+                    spacing: 4
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Rectangle {
+                            Layout.fillWidth: true; Layout.preferredHeight: 30
+                            radius: 3
+                            color: Theme.bgElevated
+                            border.color: pathInput.activeFocus ? Theme.accentBlue : Theme.border
+                            border.width: 1
+                            TextInput {
+                                id: pathInput
+                                anchors { fill: parent; leftMargin: 8; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                                text: missionFilePath
+                                color: Theme.textPrimary
+                                font.pixelSize: 10; font.family: Theme.fontMono
+                                onTextChanged: missionFilePath = text
+                                clip: true
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredWidth: 64; Layout.preferredHeight: 30; radius: 3
+                            color: saveMa.pressed ? Qt.rgba(0.50, 0.84, 1.0, 0.10) : Theme.bgElevated
+                            border.color: saveMa.pressed ? Theme.accentBlue : Theme.border; border.width: 1
+                            Text { anchors.centerIn: parent; text: "SAVE"; color: Theme.accentBlue; font.pixelSize: 10; font.weight: Font.SemiBold }
+                            MouseArea {
+                                id: saveMa; anchors.fill: parent
+                                onClicked: {
+                                    var ok = GCSState.saveMissionToFile(missionFilePath)
+                                    missionFileStatus = ok
+                                        ? "Saved " + GCSState.waypoints.length + " WP / " + GCSState.pois.length + " POI → " + missionFilePath
+                                        : "Save failed: " + GCSState.missionLastError()
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredWidth: 64; Layout.preferredHeight: 30; radius: 3
+                            color: loadMa.pressed ? Qt.rgba(0.89, 0.82, 0.29, 0.10) : Theme.bgElevated
+                            border.color: loadMa.pressed ? Theme.accentYellow : Theme.border; border.width: 1
+                            Text { anchors.centerIn: parent; text: "LOAD"; color: Theme.accentYellow; font.pixelSize: 10; font.weight: Font.SemiBold }
+                            MouseArea {
+                                id: loadMa; anchors.fill: parent
+                                onClicked: {
+                                    var ok = GCSState.loadMissionFromFile(missionFilePath)
+                                    missionFileStatus = ok
+                                        ? "Loaded " + GCSState.waypoints.length + " WP / " + GCSState.pois.length + " POI"
+                                        : "Load failed: " + GCSState.missionLastError()
+                                    selectedWpIndex = -1; selectedPoiIndex = -1
+                                }
+                            }
+                        }
                     }
-
-                    scale: missionActMa.pressed ? 0.98 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 70 } }
 
                     Text {
-                        anchors.centerIn: parent; text: modelData.label
-                        color: missionActMa.pressed ? missionActBtn.accentColor : Theme.textSecondary
-                        font.pixelSize: Theme.fontButton; font.weight: Font.SemiBold; font.letterSpacing: 0.4
-                        Behavior on color { ColorAnimation { duration: 80 } }
+                        Layout.fillWidth: true
+                        text: missionFileStatus.length > 0 ? missionFileStatus : "Mission JSON file (relative to working dir or absolute path)"
+                        color: missionFileStatus.indexOf("failed") >= 0 ? Theme.statusCrit : Theme.textDisabled
+                        font.pixelSize: 9; font.family: Theme.fontMono
+                        elide: Text.ElideMiddle
                     }
-                    MouseArea {
-                        id: missionActMa; anchors.fill: parent
-                        onClicked: {
-                            if (modelData.action === "upload")   uploadConfirm.open()
-                            if (modelData.action === "download") GCSState.sendMissionDownload()
-                            if (modelData.action === "clear")    clearConfirm.open()
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            // UPLOAD / DOWNLOAD / CLEAR (single row)
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                Layout.maximumHeight: 40
+                spacing: 0
+
+                Repeater {
+                    model: [
+                        { label: "UPLOAD",   action: "upload",   accent: Theme.accentBlue },
+                        { label: "DOWNLOAD", action: "download", accent: Theme.accentBlue },
+                        { label: "CLEAR",    action: "clear",    accent: Theme.statusCrit }
+                    ]
+                    Rectangle {
+                        id: missionActBtn
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        property color accentColor: modelData.accent
+                        color: missionActMa.pressed ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.08) : Theme.bgElevated
+                        border.color: missionActMa.pressed ? accentColor : Theme.border; border.width: 1
+                        Behavior on color { ColorAnimation { duration: 80 } }
+                        Behavior on border.color { ColorAnimation { duration: 80 } }
+
+                        Rectangle {
+                            anchors { top: parent.top; left: parent.left; right: parent.right }
+                            height: 2
+                            color: missionActBtn.accentColor
+                            opacity: missionActMa.pressed ? 0.8 : 0.2
+                            Behavior on opacity { NumberAnimation { duration: 80 } }
+                        }
+
+                        scale: missionActMa.pressed ? 0.98 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 70 } }
+
+                        Text {
+                            anchors.centerIn: parent; text: modelData.label
+                            color: missionActMa.pressed ? missionActBtn.accentColor : Theme.textSecondary
+                            font.pixelSize: Theme.fontButton; font.weight: Font.SemiBold; font.letterSpacing: 0.4
+                            Behavior on color { ColorAnimation { duration: 80 } }
+                        }
+                        MouseArea {
+                            id: missionActMa; anchors.fill: parent
+                            onClicked: {
+                                if (modelData.action === "upload")   uploadConfirm.open()
+                                if (modelData.action === "download") GCSState.sendMissionDownload()
+                                if (modelData.action === "clear")    clearConfirm.open()
+                            }
                         }
                     }
                 }

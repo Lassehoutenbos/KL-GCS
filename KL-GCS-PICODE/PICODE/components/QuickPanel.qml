@@ -41,7 +41,7 @@ Item {
     // Scrim (click to dismiss)
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(0, 0, 0, 0.45)
+        color: Qt.rgba(0, 0, 0, 0.55)
 
         MouseArea {
             anchors.fill: parent
@@ -49,33 +49,88 @@ Item {
         }
     }
 
+    // ── Reusable mini-slider style ────────────────────────────────────────
+    component MiniSlider : Slider {
+        id: ms
+        from: 0; to: 100; stepSize: 1
+        property color trackColor: Theme.accentBlue
+
+        background: Item {
+            x: ms.leftPadding
+            y: ms.topPadding + ms.availableHeight / 2 - height / 2
+            implicitWidth: 200; implicitHeight: 6
+            width: ms.availableWidth; height: 6
+
+            Rectangle {
+                width: parent.width; height: parent.height; radius: 3
+                color: Theme.bgSunken
+                border.color: Theme.border; border.width: 1
+            }
+            Rectangle {
+                width: ms.visualPosition * parent.width
+                height: parent.height; radius: 3
+                color: ms.trackColor; opacity: 0.85
+            }
+        }
+        handle: Rectangle {
+            x: ms.leftPadding + ms.visualPosition * (ms.availableWidth - width)
+            y: ms.topPadding + ms.availableHeight / 2 - height / 2
+            width: 16; height: 16; radius: 8
+            color: Theme.textPrimary
+            border.color: ms.trackColor; border.width: 2
+            scale: ms.pressed ? 0.86 : 1.0
+            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutQuad } }
+        }
+    }
+
     // Slide-down panel
     Rectangle {
         id: panelRect
         width: parent.width
-        height: 468
+        height: 504
         y: -height
         color: Theme.bgSecondary
         border.color: Theme.border
         border.width: 1
 
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.panelTop }
+            GradientStop { position: 1.0; color: Theme.panelBottom }
+        }
+
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 8
-            spacing: 6
+            anchors.margins: 10
+            spacing: 8
 
             // ── HEADER ──────────────────────────────────────────────────
             RowLayout {
-                spacing: 8
+                spacing: 10
                 Layout.fillWidth: true
                 Layout.preferredHeight: 36
+
+                BrandLogo {
+                    variant: "mark"
+                    Layout.preferredWidth: 30
+                    Layout.preferredHeight: 30
+                }
 
                 Text {
                     text: "QUICK PANEL"
                     color: Theme.textPrimary
                     font.pixelSize: Theme.fontPageTitle
                     font.weight: Font.SemiBold
+                    font.letterSpacing: 0.8
                     Layout.fillWidth: true
+                }
+
+                Text {
+                    text: "KL-SYSTEMS"
+                    color: Theme.textDisabled
+                    font.pixelSize: Theme.fontMicro
+                    font.weight: Font.Medium
+                    font.letterSpacing: 1.2
+                    font.family: Theme.fontMono
                 }
 
                 BigButton {
@@ -86,64 +141,81 @@ Item {
                 }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: Theme.border
-            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
+            // ════════════════════ LIGHTING CARD ════════════════════
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 188
-                radius: 4
+                Layout.preferredHeight: 168
+                radius: Theme.radiusCard
                 color: Theme.bgElevated
                 border.color: Theme.border
                 border.width: 1
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 6
+                    anchors.margins: 10
+                    spacing: 8
 
-                    Text {
-                        text: "LIGHTING"
-                        color: Theme.textSecondary
-                        font.pixelSize: Theme.fontSectionLabel
-                        font.weight: Font.SemiBold
-                        font.letterSpacing: 0.6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "LIGHTING"
+                            color: Theme.textSecondary
+                            font.pixelSize: Theme.fontSectionLabel
+                            font.weight: Font.SemiBold
+                            font.letterSpacing: 0.6
+                            Layout.fillWidth: true
+                        }
+                        // Live preview swatch
+                        Rectangle {
+                            width: 18; height: 18; radius: 9
+                            color: GCSState.worklightOn
+                                   ? GCSState.worklightColor
+                                   : Qt.rgba(GCSState.worklightColor.r, GCSState.worklightColor.g, GCSState.worklightColor.b, 0.25)
+                            border.color: Theme.border; border.width: 1
+                        }
                     }
 
-                    // ── QUICK ACTIONS ───────────────────────────────────────
+                    // Two big toggles
                     RowLayout {
                         spacing: 8
                         Layout.fillWidth: true
                         Layout.preferredHeight: 52
 
-                        // Worklight toggle
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            radius: 4
-                            color: GCSState.worklightOn ? Qt.rgba(Theme.accentYellow.r, Theme.accentYellow.g, Theme.accentYellow.b, 0.10) : Theme.bgSecondary
+                            radius: Theme.radiusButton
+                            color: GCSState.worklightOn ? Theme.accentYellowSoft : Theme.bgSecondary
                             border.color: GCSState.worklightOn ? Theme.accentYellow : Theme.border
                             border.width: GCSState.worklightOn ? 2 : 1
+                            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
 
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text {
-                                    text: "WORKLIGHT"
-                                    color: GCSState.worklightOn ? Theme.accentYellow : Theme.textSecondary
-                                    font.pixelSize: 10
-                                    font.weight: Font.SemiBold
-                                    Layout.alignment: Qt.AlignHCenter
-                                }
-                                Text {
-                                    text: GCSState.worklightOn ? "ON" : "OFF"
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 14; anchors.rightMargin: 14
+                                spacing: 10
+
+                                Rectangle {
+                                    Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4
                                     color: GCSState.worklightOn ? Theme.accentYellow : Theme.textDisabled
-                                    font.pixelSize: 10
-                                    font.weight: Font.Bold
-                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true; spacing: 2
+                                    Text {
+                                        text: "WORKLIGHT"
+                                        color: GCSState.worklightOn ? Theme.accentYellow : Theme.textSecondary
+                                        font.pixelSize: 11
+                                        font.weight: Font.SemiBold
+                                        font.letterSpacing: 0.6
+                                    }
+                                    Text {
+                                        text: GCSState.worklightOn ? "ACTIVE" : "OFF"
+                                        color: Theme.textDisabled
+                                        font.pixelSize: 9
+                                        font.family: Theme.fontMono
+                                    }
                                 }
                             }
                             MouseArea {
@@ -152,31 +224,39 @@ Item {
                             }
                         }
 
-                        // ALS auto toggle
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            radius: 4
-                            color: GCSState.alsAutoEnabled ? Qt.rgba(Theme.accentYellow.r, Theme.accentYellow.g, Theme.accentYellow.b, 0.10) : Theme.bgSecondary
-                            border.color: GCSState.alsAutoEnabled ? Theme.accentYellow : Theme.border
+                            radius: Theme.radiusButton
+                            color: GCSState.alsAutoEnabled ? Theme.accentBlueSoft : Theme.bgSecondary
+                            border.color: GCSState.alsAutoEnabled ? Theme.accentBlue : Theme.border
                             border.width: GCSState.alsAutoEnabled ? 2 : 1
+                            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
 
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text {
-                                    text: "AMBIENT"
-                                    color: GCSState.alsAutoEnabled ? Theme.accentYellow : Theme.textSecondary
-                                    font.pixelSize: 10
-                                    font.weight: Font.SemiBold
-                                    Layout.alignment: Qt.AlignHCenter
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 14; anchors.rightMargin: 14
+                                spacing: 10
+
+                                Rectangle {
+                                    Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4
+                                    color: GCSState.alsAutoEnabled ? Theme.accentBlue : Theme.textDisabled
                                 }
-                                Text {
-                                    text: GCSState.alsAutoEnabled ? "AUTO" : "MANUAL"
-                                    color: GCSState.alsAutoEnabled ? Theme.accentYellow : Theme.textDisabled
-                                    font.pixelSize: 10
-                                    font.weight: Font.Bold
-                                    Layout.alignment: Qt.AlignHCenter
+                                ColumnLayout {
+                                    Layout.fillWidth: true; spacing: 2
+                                    Text {
+                                        text: "AMBIENT"
+                                        color: GCSState.alsAutoEnabled ? Theme.accentBlue : Theme.textSecondary
+                                        font.pixelSize: 11
+                                        font.weight: Font.SemiBold
+                                        font.letterSpacing: 0.6
+                                    }
+                                    Text {
+                                        text: GCSState.alsAutoEnabled ? "AUTO" : "MANUAL"
+                                        color: Theme.textDisabled
+                                        font.pixelSize: 9
+                                        font.family: Theme.fontMono
+                                    }
                                 }
                             }
                             MouseArea {
@@ -186,130 +266,123 @@ Item {
                         }
                     }
 
-                    // ── WORKLIGHT COLOR ─────────────────────────────────────
-                    RowLayout {
-                        spacing: 6
+                    // ── HUE SLIDER ─────────────────────────────────────
+                    Item {
+                        id: colorRow
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 40
-                        visible: true
+                        Layout.preferredHeight: 56
 
-                        Text {
-                            text: "COLOR"
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontSectionLabel
-                            font.weight: Font.Medium
-                            Layout.preferredWidth: 56
-                        }
+                        // Helpers
+                        property bool isWhite: Math.abs(GCSState.worklightColor.r - 1) < 0.02
+                                               && Math.abs(GCSState.worklightColor.g - 1) < 0.02
+                                               && Math.abs(GCSState.worklightColor.b - 1) < 0.02
+                        property bool isWarm:  Math.abs(GCSState.worklightColor.r - 1) < 0.02
+                                               && Math.abs(GCSState.worklightColor.g - 200/255) < 0.03
+                                               && Math.abs(GCSState.worklightColor.b - 120/255) < 0.03
 
-                        Repeater {
-                            model: [
-                                { label: "W",  r: 255, g: 255, b: 255 },
-                                { label: "WW", r: 255, g: 200, b: 120 },
-                                { label: "R",  r: 255, g: 0,   b: 0   },
-                                { label: "G",  r: 0,   g: 255, b: 0   },
-                                { label: "B",  r: 0,   g: 100, b: 255 },
-                                { label: "A",  r: 255, g: 180, b: 0   }
-                            ]
+                        RowLayout {
+                            anchors.fill: parent
+                            spacing: 8
 
-                            Item {
+                            Text {
+                                text: "COLOR"
+                                color: Theme.textSecondary
+                                font.pixelSize: Theme.fontSectionLabel
+                                font.weight: Font.Medium
+                                Layout.preferredWidth: 56
+                            }
+
+                            // Rainbow hue slider
+                            Slider {
+                                id: hueSlider
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
+                                from: 0; to: 1; stepSize: 0.001
+                                value: GCSState.worklightColor.hsvSaturation > 0.1
+                                       ? GCSState.worklightColor.hsvHue
+                                       : 0
 
-                                property color swatchColor: Qt.rgba(modelData.r / 255, modelData.g / 255, modelData.b / 255, 1.0)
-                                property bool active: GCSState.worklightColor.r === modelData.r / 255
-                                                      && GCSState.worklightColor.g === modelData.g / 255
-                                                      && GCSState.worklightColor.b === modelData.b / 255
+                                background: Item {
+                                    x: hueSlider.leftPadding
+                                    y: hueSlider.topPadding + hueSlider.availableHeight / 2 - height / 2
+                                    width: hueSlider.availableWidth
+                                    height: 14
 
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 6
-                                    color: active
-                                           ? Qt.rgba(swatchColor.r, swatchColor.g, swatchColor.b, 0.24)
-                                           : colorMouse.containsMouse
-                                             ? Qt.rgba(swatchColor.r, swatchColor.g, swatchColor.b, 0.14)
-                                             : Theme.bgSecondary
-                                    border.color: active
-                                                  ? Theme.accentYellow
-                                                  : colorMouse.containsMouse
-                                                    ? swatchColor
-                                                    : Theme.border
-                                    border.width: active ? 2 : 1
-                                }
-
-                                Rectangle {
-                                    anchors.centerIn: parent
-                                    width: 16; height: 16; radius: 8
-                                    color: swatchColor
-                                    border.color: Theme.bgPrimary
-                                    border.width: 1
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    anchors.bottom: parent.bottom
-                                    anchors.bottomMargin: 2
-                                    text: modelData.label
-                                    color: active ? Theme.textPrimary : Theme.textSecondary
-                                    font.pixelSize: 9
-                                    font.weight: active ? Font.SemiBold : Font.Medium
-                                }
-
-                                Rectangle {
-                                    visible: active
-                                    anchors.top: parent.top
-                                    anchors.right: parent.right
-                                    anchors.topMargin: 2
-                                    anchors.rightMargin: 2
-                                    width: 10
-                                    height: 10
-                                    radius: 5
-                                    color: Theme.accentYellow
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "✓"
-                                        color: Theme.bgPrimary
-                                        font.pixelSize: 7
-                                        font.weight: Font.Bold
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: 7
+                                        border.color: Theme.border
+                                        border.width: 1
+                                        gradient: Gradient {
+                                            orientation: Gradient.Horizontal
+                                            GradientStop { position: 0.000; color: "#ff0000" }
+                                            GradientStop { position: 0.166; color: "#ffff00" }
+                                            GradientStop { position: 0.333; color: "#00ff00" }
+                                            GradientStop { position: 0.500; color: "#00ffff" }
+                                            GradientStop { position: 0.666; color: "#0066ff" }
+                                            GradientStop { position: 0.833; color: "#ff00ff" }
+                                            GradientStop { position: 1.000; color: "#ff0000" }
+                                        }
                                     }
                                 }
 
-                                MouseArea {
-                                    id: colorMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: GCSState.worklightColor = Qt.rgba(modelData.r / 255, modelData.g / 255, modelData.b / 255, 1.0)
+                                handle: Rectangle {
+                                    x: hueSlider.leftPadding + hueSlider.visualPosition * (hueSlider.availableWidth - width)
+                                    y: hueSlider.topPadding + hueSlider.availableHeight / 2 - height / 2
+                                    width: 22; height: 22; radius: 11
+                                    color: Qt.hsva(hueSlider.value, 1, 1, 1)
+                                    border.color: Theme.textPrimary
+                                    border.width: 2
+                                    scale: hueSlider.pressed ? 0.88 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutQuad } }
+
+                                    Rectangle {
+                                        anchors.centerIn: parent
+                                        width: 6; height: 6; radius: 3
+                                        color: Theme.bgPrimary; opacity: 0.5
+                                    }
                                 }
+
+                                onMoved: GCSState.worklightColor = Qt.hsva(value, 1, 1, 1)
                             }
-                        }
-                    }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 24
-                        spacing: 6
-
-                        Repeater {
-                            model: [
-                                { lbl: "SCREEN L", val: GCSState.brightnessScreenL },
-                                { lbl: "SCREEN R", val: GCSState.brightnessScreenR },
-                                { lbl: "LED STRIP", val: GCSState.brightnessLed },
-                                { lbl: "TFT SCREEN", val: GCSState.brightnessTft },
-                                { lbl: "BUTTON LEDS", val: GCSState.brightnessBtnLeds }
-                            ]
+                            // White / Warm chips
                             Rectangle {
-                                Layout.fillWidth: true
+                                Layout.preferredWidth: 44
                                 Layout.fillHeight: true
-                                radius: 3
-                                color: Theme.bgSecondary
-                                border.color: Theme.border
-                                border.width: 1
+                                radius: Theme.radiusButton
+                                color: colorRow.isWhite ? Qt.rgba(1,1,1,0.18) : Theme.bgSecondary
+                                border.color: colorRow.isWhite ? "#ffffff" : Theme.border
+                                border.width: colorRow.isWhite ? 2 : 1
                                 Text {
                                     anchors.centerIn: parent
-                                    text: modelData.lbl + " " + modelData.val
-                                    color: Theme.textSecondary
-                                    font.pixelSize: 8
-                                    font.family: "monospace"
+                                    text: "W"
+                                    color: colorRow.isWhite ? "#ffffff" : Theme.textSecondary
+                                    font.pixelSize: 12; font.weight: Font.Bold
+                                    font.family: Theme.fontMono
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: GCSState.worklightColor = Qt.rgba(1, 1, 1, 1)
+                                }
+                            }
+                            Rectangle {
+                                Layout.preferredWidth: 44
+                                Layout.fillHeight: true
+                                radius: Theme.radiusButton
+                                color: colorRow.isWarm ? Qt.rgba(1, 200/255, 120/255, 0.20) : Theme.bgSecondary
+                                border.color: colorRow.isWarm ? Qt.rgba(1, 200/255, 120/255, 1) : Theme.border
+                                border.width: colorRow.isWarm ? 2 : 1
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "WW"
+                                    color: colorRow.isWarm ? Qt.rgba(1, 200/255, 120/255, 1) : Theme.textSecondary
+                                    font.pixelSize: 11; font.weight: Font.Bold
+                                    font.family: Theme.fontMono
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: GCSState.worklightColor = Qt.rgba(1, 200/255, 120/255, 1)
                                 }
                             }
                         }
@@ -317,74 +390,46 @@ Item {
                 }
             }
 
+            // ════════════════════ BRIGHTNESS CARD ════════════════════
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
-                color: Theme.border
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 60
-                radius: 4
+                Layout.preferredHeight: 192
+                radius: Theme.radiusCard
                 color: Theme.bgElevated
                 border.color: Theme.border
                 border.width: 1
 
-                RowLayout {
+                ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 8
+                    anchors.margins: 10
+                    spacing: 6
 
-                    Text {
-                        text: "BRIGHTNESS"
-                        color: Theme.textSecondary
-                        font.pixelSize: Theme.fontSectionLabel
-                        font.weight: Font.Medium
-                        Layout.preferredWidth: 82
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "BRIGHTNESS"
+                            color: Theme.textSecondary
+                            font.pixelSize: Theme.fontSectionLabel
+                            font.weight: Font.SemiBold
+                            font.letterSpacing: 0.6
+                            Layout.fillWidth: true
+                        }
+                        Text {
+                            text: "MASTER " + Math.round(masterSlider.value) + "%"
+                            color: Theme.accentYellow
+                            font.pixelSize: 10
+                            font.family: Theme.fontMono
+                            font.weight: Font.SemiBold
+                        }
                     }
 
-                    Slider {
+                    // Master slider
+                    MiniSlider {
                         id: masterSlider
-                        from: 0; to: 100; stepSize: 1
-                        value: GCSState.brightnessScreenL
                         Layout.fillWidth: true
-
-                        // Custom track
-                        background: Item {
-                            x: masterSlider.leftPadding
-                            y: masterSlider.topPadding + masterSlider.availableHeight / 2 - height / 2
-                            implicitWidth: 200; implicitHeight: 6
-                            width: masterSlider.availableWidth; height: 6
-
-                            Rectangle {
-                                width: parent.width; height: parent.height; radius: 3
-                                color: Theme.bgSecondary
-                                border.color: Theme.border; border.width: 1
-                            }
-                            Rectangle {
-                                width: masterSlider.visualPosition * parent.width
-                                height: parent.height; radius: 3
-                                color: Theme.accentBlue; opacity: 0.85
-                            }
-                        }
-
-                        // Custom handle
-                        handle: Rectangle {
-                            x: masterSlider.leftPadding + masterSlider.visualPosition * (masterSlider.availableWidth - width)
-                            y: masterSlider.topPadding + masterSlider.availableHeight / 2 - height / 2
-                            width: 18; height: 18; radius: 9
-                            color: Theme.accentYellow
-                            border.color: Theme.bgPrimary; border.width: 2
-
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 6; height: 6; radius: 3
-                                color: Theme.bgPrimary; opacity: 0.5
-                            }
-                            scale: masterSlider.pressed ? 0.84 : 1.0
-                            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutQuad } }
-                        }
+                        Layout.preferredHeight: 28
+                        trackColor: Theme.accentYellow
+                        value: GCSState.brightnessScreenL
 
                         onPressedChanged: {
                             if (pressed) {
@@ -408,34 +453,70 @@ Item {
                         }
                     }
 
-                    Text {
-                        text: Math.round(masterSlider.value) + "%"
-                        color: Theme.textPrimary
-                        font.pixelSize: Theme.fontUnit
-                        font.family: "monospace"
-                        Layout.preferredWidth: 44
-                        horizontalAlignment: Text.AlignRight
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border; opacity: 0.6 }
+
+                    // Per-channel grid: 5 mini sliders in two columns
+                    GridLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        columns: 2
+                        rowSpacing: 4
+                        columnSpacing: 14
+
+                        // Channel definitions: [label, getter, setter property name]
+                        Repeater {
+                            model: [
+                                { lbl: "SCREEN L", val: GCSState.brightnessScreenL, prop: "brightnessScreenL" },
+                                { lbl: "SCREEN R", val: GCSState.brightnessScreenR, prop: "brightnessScreenR" },
+                                { lbl: "LED STRIP", val: GCSState.brightnessLed,    prop: "brightnessLed" },
+                                { lbl: "TFT",       val: GCSState.brightnessTft,    prop: "brightnessTft" },
+                                { lbl: "BTN LEDS",  val: GCSState.brightnessBtnLeds, prop: "brightnessBtnLeds" }
+                            ]
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Text {
+                                    text: modelData.lbl
+                                    color: Theme.textSecondary
+                                    font.pixelSize: 9
+                                    font.family: Theme.fontMono
+                                    font.weight: Font.Medium
+                                    Layout.preferredWidth: 64
+                                }
+                                MiniSlider {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 22
+                                    trackColor: Theme.accentBlue
+                                    value: modelData.val
+                                    onMoved: GCSState[modelData.prop] = Math.round(value)
+                                }
+                                Text {
+                                    text: modelData.val + "%"
+                                    color: Theme.textPrimary
+                                    font.pixelSize: 10
+                                    font.family: Theme.fontMono
+                                    Layout.preferredWidth: 32
+                                    horizontalAlignment: Text.AlignRight
+                                }
+                            }
+                        }
                     }
                 }
             }
 
+            // ════════════════════ QUICK LAYOUTS ════════════════════
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
-                color: Theme.border
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 70
-                radius: 4
+                Layout.preferredHeight: 64
+                radius: Theme.radiusCard
                 color: Theme.bgElevated
                 border.color: Theme.border
                 border.width: 1
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
+                    anchors.margins: 10
                     spacing: 6
 
                     Text {
@@ -455,17 +536,20 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 height: 26
-                                radius: 3
+                                radius: Theme.radiusButton
                                 property bool selected: panel.quickLayoutMode === modelData
-                                color: selected ? Qt.rgba(Theme.accentYellow.r, Theme.accentYellow.g, Theme.accentYellow.b, 0.12) : Theme.bgSecondary
+                                color: selected ? Theme.accentYellowSoft : Theme.bgSecondary
                                 border.color: selected ? Theme.accentYellow : Theme.border
                                 border.width: selected ? 2 : 1
+                                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+
                                 Text {
                                     anchors.centerIn: parent
                                     text: modelData
                                     color: parent.selected ? Theme.accentYellow : Theme.textSecondary
-                                    font.pixelSize: 9
+                                    font.pixelSize: 10
                                     font.weight: Font.SemiBold
+                                    font.letterSpacing: 0.5
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -477,36 +561,37 @@ Item {
                 }
             }
 
+            // ════════════════════ FOOTER STATUS ════════════════════
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 40
-                radius: 4
-                color: Theme.bgElevated
+                Layout.preferredHeight: 36
+                radius: Theme.radiusCard
+                color: Theme.bgSunken
                 border.color: Theme.border
                 border.width: 1
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 8
+                    anchors.leftMargin: 12; anchors.rightMargin: 12
+                    spacing: 16
 
                     Text {
-                        text: "PROCESSOR " + GCSState.tempCpuPi.toFixed(0) + "°"
+                        text: "CPU " + GCSState.tempCpuPi.toFixed(0) + "°"
                         color: GCSState.tempCpuPi < 80 ? Theme.textSecondary : Theme.statusWarn
-                        font.pixelSize: Theme.fontUnit
-                        font.family: "monospace"
+                        font.pixelSize: 10
+                        font.family: Theme.fontMono
                     }
                     Text {
-                        text: "MEMORY " + GCSState.memPercent + "%"
+                        text: "MEM " + GCSState.memPercent + "%"
                         color: Theme.textSecondary
-                        font.pixelSize: Theme.fontUnit
-                        font.family: "monospace"
+                        font.pixelSize: 10
+                        font.family: Theme.fontMono
                     }
                     Text {
-                        text: "DISK USAGE " + GCSState.diskPercent + "%"
+                        text: "DISK " + GCSState.diskPercent + "%"
                         color: Theme.textSecondary
-                        font.pixelSize: Theme.fontUnit
-                        font.family: "monospace"
+                        font.pixelSize: 10
+                        font.family: Theme.fontMono
                     }
                     Item { Layout.fillWidth: true }
                     Text {
@@ -514,11 +599,10 @@ Item {
                         color: Theme.accentBlue
                         font.pixelSize: Theme.fontSectionLabel
                         font.weight: Font.SemiBold
+                        font.letterSpacing: 0.8
                     }
                 }
             }
-
-            Item { Layout.fillHeight: true }
         }
     }
 }

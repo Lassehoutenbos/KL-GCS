@@ -70,12 +70,12 @@ Rectangle {
                             text: GCSState.batteryVoltage.toFixed(1) + "V"
                             color: GCSState.batteryPercent < 20 ? Theme.statusCrit
                                  : GCSState.batteryPercent < 40 ? Theme.statusWarn : Theme.textPrimary
-                            font.pixelSize: Theme.fontValueMedium; font.weight: Font.Bold; font.family: "monospace"
+                            font.pixelSize: Theme.fontValueMedium; font.weight: Font.Bold; font.family: Theme.fontMono
                         }
                         Item { Layout.fillWidth: true }
                         Text {
                             text: GCSState.batteryPercent + "%"
-                            color: Theme.textSecondary; font.pixelSize: Theme.fontValueSmall; font.weight: Font.SemiBold; font.family: "monospace"
+                            color: Theme.textSecondary; font.pixelSize: Theme.fontValueSmall; font.weight: Font.SemiBold; font.family: Theme.fontMono
                         }
                     }
 
@@ -326,7 +326,7 @@ Rectangle {
                         Text {
                             text: "> " + modelData
                             color: Theme.textSecondary
-                            font.pixelSize: Theme.fontSectionLabel; font.family: "monospace"
+                            font.pixelSize: Theme.fontSectionLabel; font.family: Theme.fontMono
                             Layout.fillWidth: true; elide: Text.ElideRight
                         }
                     }

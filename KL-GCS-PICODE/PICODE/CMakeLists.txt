@@ -6,13 +6,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 REQUIRED COMPONENTS
     Quick
     QuickControls2
+    QuickShapes
     SerialPort
     Multimedia
     Positioning
     Location
     Network
-    Quick3D
-    Quick3DAssetUtils
+    Svg
+    Sql
 )
 
 qt_standard_project_setup(REQUIRES 6.10)
@@ -24,6 +25,7 @@ qt_add_executable(appPICODE
     backend/gcsstate.h   backend/gcsstate.cpp
     backend/picolink.h   backend/picolink.cpp
     backend/mavlinklink.h backend/mavlinklink.cpp
+    backend/sensorhistory.h backend/sensorhistory.cpp
 )
 
 qt_add_qml_module(appPICODE
@@ -37,10 +39,14 @@ qt_add_qml_module(appPICODE
         components/BigButton.qml
         components/SliderRow.qml
         components/StatusDot.qml
+        components/SectionHeader.qml
+        components/Panel.qml
+        components/BrandLogo.qml
+        components/NavIcon.qml
         components/ConfirmOverlay.qml
         components/QuickPanel.qml
         components/CaseView.qml
-        components/CaseView3D.qml
+        components/TimeSeriesChart.qml
         pages/DashPage.qml
         pages/DronePage.qml
         pages/CameraPage.qml
@@ -49,9 +55,17 @@ qt_add_qml_module(appPICODE
         pages/ParamsPage.qml
         pages/PayloadPage.qml
         pages/PeriphPage.qml
+        pages/CommsPage.qml
         pages/CasePage.qml
     RESOURCES
-        assets/models/case_v13.glb
+        assets/svg/case_twin.svg
+        assets/logos/Main.png
+        assets/logos/Both.png
+        assets/logos/Favicon.png
+        assets/fonts/JetBrainsMono-Regular.ttf
+        assets/fonts/JetBrainsMono-Medium.ttf
+        assets/fonts/JetBrainsMono-SemiBold.ttf
+        assets/fonts/JetBrainsMono-Bold.ttf
 )
 
 
@@ -66,13 +80,14 @@ set_target_properties(appPICODE PROPERTIES
 target_link_libraries(appPICODE PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::QuickShapes
     Qt6::SerialPort
     Qt6::Multimedia
     Qt6::Positioning
     Qt6::Location
     Qt6::Network
-    Qt6::Quick3D
-    Qt6::Quick3DAssetUtils
+    Qt6::Svg
+    Qt6::Sql
 )
 
 install(TARGETS appPICODE

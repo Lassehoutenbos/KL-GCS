@@ -82,7 +82,7 @@ Rectangle {
                                 text: "0x" + modelData.address.toString(16).toUpperCase().padStart(2, '0')
                                 color: Theme.textDisabled
                                 font.pixelSize: Theme.fontSectionLabel
-                                font.family: "monospace"
+                                font.family: Theme.fontMono
                             }
 
                             Text {
@@ -204,7 +204,7 @@ Rectangle {
                             id: addrLabel
                             anchors.centerIn: parent
                             text: selectedDevice ? "0x" + selectedDevice.address.toString(16).toUpperCase().padStart(2, '0') : ""
-                            color: Theme.textDisabled; font.pixelSize: Theme.fontSectionLabel; font.family: "monospace"
+                            color: Theme.textDisabled; font.pixelSize: Theme.fontSectionLabel; font.family: Theme.fontMono
                         }
                     }
                     Rectangle {

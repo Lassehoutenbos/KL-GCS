@@ -45,7 +45,7 @@ Rectangle {
                     RowLayout {
                         anchors { fill: parent; leftMargin: 11; rightMargin: 10 }
                         Text { text: "WAYPOINTS"; color: Theme.textSecondary; font.pixelSize: Theme.fontPageTitle; font.weight: Font.SemiBold; font.letterSpacing: 0.8; Layout.fillWidth: true }
-                        Text { text: GCSState.waypoints.length + " WP"; color: Theme.accentBlue; font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: "monospace" }
+                        Text { text: GCSState.waypoints.length + " WP"; color: Theme.accentBlue; font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: Theme.fontMono }
                     }
                 }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
@@ -81,7 +81,7 @@ Rectangle {
                                 Text {
                                     text: "WP" + (index + 1)
                                     color: Theme.accentYellow
-                                    font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: "monospace"
+                                    font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Bold; font.family: Theme.fontMono
                                     Layout.preferredWidth: 36
                                 }
                                 Text {
@@ -103,7 +103,7 @@ Rectangle {
                                     return s
                                 }
                                 color: Theme.textDisabled
-                                font.pixelSize: 10; font.family: "monospace"
+                                font.pixelSize: 10; font.family: Theme.fontMono
                             }
                         }
                     }
@@ -122,7 +122,7 @@ Rectangle {
                             text: missionDistM >= 1000
                                   ? (missionDistM / 1000).toFixed(2) + " km"
                                   : Math.round(missionDistM) + " m"
-                            color: Theme.accentBlue; font.pixelSize: Theme.fontValueSmall; font.weight: Font.Bold; font.family: "monospace"
+                            color: Theme.accentBlue; font.pixelSize: Theme.fontValueSmall; font.weight: Font.Bold; font.family: Theme.fontMono
                         }
                     }
                 }

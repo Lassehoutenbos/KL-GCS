@@ -492,3 +492,155 @@ void GCSState::resetCaseTwinConfig()
     m_caseTwinConfigLastError.clear();
     emit caseTwinConfigChanged();
 }
+
+void GCSState::updateModuleGps(const QVariantMap &f)
+{
+    if (f.contains("connected")) m_modGpsConnected = f.value("connected").toBool();
+    if (f.contains("port"))      m_modGpsPort      = f.value("port").toString();
+    if (f.contains("lat"))       m_modGpsLat       = f.value("lat").toDouble();
+    if (f.contains("lon"))       m_modGpsLon       = f.value("lon").toDouble();
+    if (f.contains("alt"))       m_modGpsAlt       = f.value("alt").toDouble();
+    if (f.contains("sats"))      m_modGpsSats      = f.value("sats").toInt();
+    if (f.contains("satsTracked")) m_modGpsSatsTracked = f.value("satsTracked").toInt();
+    if (f.contains("fixType"))   m_modGpsFixType   = f.value("fixType").toString();
+    if (f.contains("hdop"))      m_modGpsHdop      = f.value("hdop").toDouble();
+    if (f.contains("speed"))     m_modGpsSpeed     = f.value("speed").toDouble();
+    if (f.contains("heading"))   m_modGpsHeading   = f.value("heading").toDouble();
+    if (f.contains("constellation")) m_modGpsConstellation = f.value("constellation").toList();
+    emit moduleGpsChanged();
+}
+
+void GCSState::updateLoraStatus(const QVariantMap &f)
+{
+    if (f.contains("connected")) m_loraConnected = f.value("connected").toBool();
+    if (f.contains("port"))      m_loraPort      = f.value("port").toString();
+    if (f.contains("rssi"))      m_loraRssi      = f.value("rssi").toInt();
+    if (f.contains("snr"))       m_loraSnr       = f.value("snr").toInt();
+    if (f.contains("frequencyMhz")) m_loraFrequencyMhz = f.value("frequencyMhz").toDouble();
+    if (f.contains("txPower"))   m_loraTxPower   = f.value("txPower").toInt();
+    if (f.contains("spreadingFactor")) m_loraSpreadingFactor = f.value("spreadingFactor").toInt();
+    if (f.contains("bandwidthKhz")) m_loraBandwidthKhz = f.value("bandwidthKhz").toInt();
+    if (f.contains("txBytes"))   m_loraTxBytes   = f.value("txBytes").toULongLong();
+    if (f.contains("rxBytes"))   m_loraRxBytes   = f.value("rxBytes").toULongLong();
+    if (f.contains("txPacketsPerSec")) m_loraTxPacketsPerSec = f.value("txPacketsPerSec").toInt();
+    if (f.contains("rxPacketsPerSec")) m_loraRxPacketsPerSec = f.value("rxPacketsPerSec").toInt();
+    emit loraChanged();
+}
+
+void GCSState::appendLoraMessage(const QString &dir, const QString &text)
+{
+    QVariantMap m;
+    m["t"]    = QDateTime::currentMSecsSinceEpoch();
+    m["dir"]  = dir;
+    m["text"] = text;
+    m_loraRecentMessages.prepend(m);
+    while (m_loraRecentMessages.size() > 24)
+        m_loraRecentMessages.removeLast();
+    emit loraChanged();
+}
+
+bool GCSState::saveMissionToFile(const QString &path)
+{
+    QJsonArray wps;
+    for (const QVariant &v : m_waypoints) {
+        const QVariantMap w = v.toMap();
+        QJsonObject o;
+        o["lat"]  = w.value("lat").toDouble();
+        o["lon"]  = w.value("lon").toDouble();
+        o["alt"]  = w.value("alt").toDouble();
+        const QString type = w.value("type").toString();
+        o["type"] = type.isEmpty() ? QStringLiteral("WAYPOINT") : type;
+        wps.append(o);
+    }
+    QJsonArray pois;
+    for (const QVariant &v : m_pois) {
+        const QVariantMap p = v.toMap();
+        QJsonObject o;
+        o["lat"]   = p.value("lat").toDouble();
+        o["lon"]   = p.value("lon").toDouble();
+        o["alt"]   = p.value("alt").toDouble();
+        o["label"] = p.value("label").toString();
+        pois.append(o);
+    }
+    QJsonObject root;
+    root["version"]   = 1;
+    root["waypoints"] = wps;
+    root["pois"]      = pois;
+
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        m_missionLastError = QString("Cannot write file: %1").arg(path);
+        return false;
+    }
+    f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    m_missionLastError.clear();
+    return true;
+}
+
+bool GCSState::loadMissionFromFile(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        m_missionLastError = QString("Cannot open file: %1").arg(path);
+        return false;
+    }
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        m_missionLastError = QString("Invalid JSON: %1").arg(err.errorString());
+        return false;
+    }
+    const QJsonObject root = doc.object();
+    QVariantList wps;
+    for (const QJsonValue &v : root.value("waypoints").toArray()) {
+        const QJsonObject o = v.toObject();
+        wps.append(QVariantMap{
+            {"lat",  o.value("lat").toDouble()},
+            {"lon",  o.value("lon").toDouble()},
+            {"alt",  o.value("alt").toDouble(20.0)},
+            {"type", o.value("type").toString("WAYPOINT")}
+        });
+    }
+    QVariantList pois;
+    for (const QJsonValue &v : root.value("pois").toArray()) {
+        const QJsonObject o = v.toObject();
+        pois.append(QVariantMap{
+            {"lat",   o.value("lat").toDouble()},
+            {"lon",   o.value("lon").toDouble()},
+            {"alt",   o.value("alt").toDouble(20.0)},
+            {"label", o.value("label").toString()}
+        });
+    }
+    m_waypoints = wps;
+    m_pois      = pois;
+    m_missionLastError.clear();
+    emit waypointsChanged();
+    emit poisChanged();
+    return true;
+}
+
+QVariantMap GCSState::sensorSnapshot() const
+{
+    QVariantMap s;
+    s["tempCaseA"]      = m_tempCaseA;
+    s["tempCaseB"]      = m_tempCaseB;
+    s["tempCaseC"]      = m_tempCaseC;
+    s["tempCaseD"]      = m_tempCaseD;
+    s["tempCpuPi"]      = m_tempCpuPi;
+    s["alsLux"]         = m_alsLux;
+    s["batteryVoltage"] = m_batteryVoltage;
+    s["batteryPercent"] = m_batteryPercent;
+    s["extVoltage"]     = m_extVoltage;
+    s["mavlinkRssi"]    = m_mavlinkRssi;
+    s["mavlinkSnr"]     = m_mavlinkSnr;
+    s["loraRssi"]       = m_loraRssi;
+    s["loraSnr"]        = m_loraSnr;
+    s["modGpsHdop"]     = m_modGpsHdop;
+    s["modGpsSats"]     = m_modGpsSats;
+    for (const QVariant &pv : m_peripherals) {
+        QVariantMap p = pv.toMap();
+        QString prefix = QString("periph%1_").arg(p.value("address").toInt());
+        if (p.contains("temp")) s[prefix + "temp"] = p.value("temp").toDouble();
+    }
+    return s;
+}

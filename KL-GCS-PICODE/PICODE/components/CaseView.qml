@@ -4,11 +4,13 @@ import PICODE
 
 Item {
     id: caseView
-    implicitHeight: 250
+    implicitHeight: 520
     signal sensorDetailsRequested(var sensor)
-    property int selectedSensor: -1  // -1 = none, 0-4 = sensor index
+    property int selectedSensor: -1
     property var minTemps: []
     property var maxTemps: []
+
+    readonly property real svgAspect: 1200 / 1600  // 0.75 (portrait)
 
     function valueForSensorKey(sensorKey) {
         if (sensorKey === "tempCpuPi") return GCSState.tempCpuPi
@@ -146,22 +148,18 @@ Item {
 
             for (var i = 0; i < sensors.length; i++) {
                 var s = sensors[i]
-                if (s.valid) {
-                    if (typeof s.value === "number") {
-                        if (s.value < mins[i]) mins[i] = s.value
-                        if (s.value > maxs[i]) maxs[i] = s.value
-                    }
+                if (s.valid && typeof s.value === "number") {
+                    if (s.value < mins[i]) mins[i] = s.value
+                    if (s.value > maxs[i]) maxs[i] = s.value
                 }
             }
             minTemps = mins
             maxTemps = maxs
-            caseCanvas.requestPaint()
         }
 
         function onCaseTwinConfigChanged() {
             resetMinMaxBuffers()
             if (selectedSensor >= sensors.length) selectedSensor = -1
-            caseCanvas.requestPaint()
         }
     }
 
@@ -173,208 +171,142 @@ Item {
 
     Component.onCompleted: resetMinMaxBuffers()
 
-    Canvas {
-        id: caseCanvas
-        anchors.fill: parent
+    // Aspect-fit container — child positions are relative to the painted SVG box,
+    // so hotspots track the image even when the container is wider/taller than the fit.
+    Item {
+        id: stage
+        anchors.centerIn: parent
+        readonly property real fitH: parent.height
+        readonly property real fitW: fitH * caseView.svgAspect
+        width: Math.min(fitW, parent.width)
+        height: width / caseView.svgAspect
 
-        onPaint: {
-            var ctx = getContext("2d")
-            var w = width
-            var h = height
-            ctx.clearRect(0, 0, w, h)
+        Image {
+            id: caseImage
+            anchors.fill: parent
+            source: "qrc:/qt/qml/PICODE/assets/svg/case_twin.svg"
+            fillMode: Image.PreserveAspectFit
+            sourceSize.width: 2400
+            smooth: true
+            asynchronous: true
+        }
 
-            // Isometric case dimensions
-            var caseW  = w * 0.60
-            var caseH  = h * 0.35
-            var depth  = h * 0.18
-            var left   = (w - caseW) / 2
-            var top    = h * 0.18
-            var isoX   = depth * 0.8
-            var isoY   = depth * 0.5
+        Repeater {
+            model: sensors
 
-            // ── RIGHT FACE ──────────────────────────────────────────
-            ctx.beginPath()
-            ctx.moveTo(left + caseW, top + isoY)
-            ctx.lineTo(left + caseW + isoX, top)
-            ctx.lineTo(left + caseW + isoX, top + caseH - isoY)
-            ctx.lineTo(left + caseW, top + caseH)
-            ctx.closePath()
-            ctx.fillStyle = Qt.rgba(Theme.bgPrimary.r, Theme.bgPrimary.g, Theme.bgPrimary.b, 1.0)
-            ctx.fill()
-            ctx.strokeStyle = Theme.border
-            ctx.lineWidth = 1.5
-            ctx.stroke()
+            Item {
+                required property int index
+                required property var modelData
+                x: modelData.cx * stage.width - width / 2
+                y: modelData.cy * stage.height - height / 2
+                width: 16; height: 16
+                z: 5
 
-            // ── TOP FACE ────────────────────────────────────────────
-            ctx.beginPath()
-            ctx.moveTo(left, top + isoY)
-            ctx.lineTo(left + isoX, top)
-            ctx.lineTo(left + caseW + isoX, top)
-            ctx.lineTo(left + caseW, top + isoY)
-            ctx.closePath()
-            ctx.fillStyle = Qt.rgba(Theme.bgSecondary.r, Theme.bgSecondary.g, Theme.bgSecondary.b, 1.0)
-            ctx.fill()
-            ctx.stroke()
+                readonly property int lvl: sensorLevel(modelData)
+                readonly property color col: levelColor(lvl)
 
-            // LED strip on top edge (accent line)
-            ctx.beginPath()
-            ctx.moveTo(left + isoX + 10, top + 2)
-            ctx.lineTo(left + caseW + isoX - 10, top + 2)
-            ctx.strokeStyle = GCSState.worklightOn
-                ? Qt.rgba(GCSState.worklightColor.r, GCSState.worklightColor.g, GCSState.worklightColor.b, 0.7)
-                : Theme.border
-            ctx.lineWidth = 3
-            ctx.stroke()
+                Rectangle {
+                    visible: parent.lvl >= 1
+                    anchors.centerIn: parent
+                    width: 28; height: 28; radius: 14
+                    color: "transparent"
+                    border.color: parent.col
+                    border.width: 1.5
+                    SequentialAnimation on opacity {
+                        running: parent.visible
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 0.7; to: 0.1; duration: 800 }
+                        NumberAnimation { from: 0.1; to: 0.7; duration: 800 }
+                    }
+                }
 
-            // ── FRONT FACE ──────────────────────────────────────────
-            ctx.beginPath()
-            ctx.moveTo(left, top + isoY)
-            ctx.lineTo(left + caseW, top + isoY)
-            ctx.lineTo(left + caseW, top + caseH)
-            ctx.lineTo(left, top + caseH)
-            ctx.closePath()
-            ctx.fillStyle = Qt.rgba(Theme.bgSecondary.r, Theme.bgSecondary.g, Theme.bgSecondary.b, 0.92)
-            ctx.fill()
-            ctx.strokeStyle = Theme.border
-            ctx.lineWidth = 1.5
-            ctx.stroke()
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 18; height: 18; radius: 9
+                    color: Qt.rgba(parent.col.r, parent.col.g, parent.col.b, 0.22)
+                    border.color: parent.col
+                    border.width: 1
+                }
 
-            // Front panel subtle accent frame
-            ctx.strokeStyle = Qt.rgba(Theme.accentBlue.r, Theme.accentBlue.g, Theme.accentBlue.b, 0.18)
-            ctx.lineWidth = 1
-            ctx.strokeRect(left + 3, top + isoY + 3, caseW - 6, caseH - isoY - 6)
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 8; height: 8; radius: 4
+                    color: parent.col
+                }
 
-            // Screen outlines (two screens)
-            var scrW = caseW * 0.38
-            var scrH = caseH * 0.70
-            var scrY = top + isoY + (caseH - isoY - scrH) / 2
-            var scrGap = caseW * 0.04
-            var scr1X = left + scrGap
-            var scr2X = left + caseW - scrGap - scrW
+                Rectangle {
+                    visible: caseView.selectedSensor === parent.index
+                    anchors.centerIn: parent
+                    width: 32; height: 32; radius: 16
+                    color: "transparent"
+                    border.color: Theme.accentYellow
+                    border.width: 2
+                }
 
-            ctx.strokeStyle = Theme.border
-            ctx.lineWidth = 1
-            // Screen L
-            ctx.strokeRect(scr1X, scrY, scrW, scrH)
-            // Screen R
-            ctx.strokeRect(scr2X, scrY, scrW, scrH)
-
-            // Screen labels
-            ctx.fillStyle = Theme.textDisabled
-            ctx.font = "9px monospace"
-            ctx.textAlign = "center"
-            ctx.fillText("L", scr1X + scrW / 2, scrY + scrH + 12)
-            ctx.fillText("R", scr2X + scrW / 2, scrY + scrH + 12)
-
-            // Center control panel area
-            var panelX = scr1X + scrW + 4
-            var panelW = scr2X - panelX - 4
-            ctx.strokeStyle = Theme.border
-            ctx.strokeRect(panelX, scrY, panelW, scrH)
-            ctx.fillStyle = Theme.textDisabled
-            ctx.fillText("CTRL", panelX + panelW / 2, scrY + scrH / 2 + 3)
-
-            // Battery voltage on front face
-            ctx.fillStyle = Theme.accentBlue
-            ctx.font = "bold 10px monospace"
-            ctx.textAlign = "left"
-            ctx.fillText(GCSState.batteryVoltage.toFixed(1) + "V", left + 8, top + caseH - 6)
-
-            if (GCSState.extVoltage > 1.0) {
-                ctx.fillStyle = Theme.statusOk
-                ctx.fillText("EXT " + GCSState.extVoltage.toFixed(1) + "V", left + caseW - 90, top + caseH - 6)
+                MouseArea {
+                    anchors.centerIn: parent
+                    width: 36; height: 36
+                    onClicked: {
+                        if (caseView.selectedSensor === parent.index) caseView.selectedSensor = -1
+                        else caseView.selectedSensor = parent.index
+                    }
+                }
             }
+        }
 
-            // ── SENSOR DOTS ─────────────────────────────────────────
-            for (var i = 0; i < sensors.length; i++) {
-                var s = sensors[i]
-                var sx = s.cx * w
-                var sy = s.cy * h
-                var lvl = sensorLevel(s)
-                var col = levelColor(lvl)
+        Repeater {
+            model: sensors
 
-                // Outer ring
-                ctx.beginPath()
-                ctx.arc(sx, sy, 8, 0, Math.PI * 2)
-                ctx.fillStyle = Qt.rgba(col.r || 0.38, col.g || 0.83, col.b || 0.56, 0.15)
-                ctx.fill()
+            Item {
+                required property int index
+                required property var modelData
+                x: modelData.cx * stage.width + 10
+                y: modelData.cy * stage.height - 11
+                width: Math.max(valueText.implicitWidth, nameText.implicitWidth) + 8
+                height: valueText.implicitHeight + nameText.implicitHeight + 2
+                z: 4
 
-                // Inner dot
-                ctx.beginPath()
-                ctx.arc(sx, sy, 4, 0, Math.PI * 2)
-                ctx.fillStyle = col
-                ctx.fill()
+                Rectangle {
+                    anchors.fill: parent
+                    color: Qt.rgba(Theme.bgPrimary.r, Theme.bgPrimary.g, Theme.bgPrimary.b, 0.72)
+                    radius: 2
+                }
 
-                // Selection ring
-                if (selectedSensor === i) {
-                    ctx.beginPath()
-                    ctx.arc(sx, sy, 12, 0, Math.PI * 2)
-                    ctx.strokeStyle = Theme.accentYellow
-                    ctx.lineWidth = 2
-                    ctx.stroke()
+                Text {
+                    id: valueText
+                    x: 4; y: 0
+                    text: sensorDisplayValue(modelData)
+                    color: levelColor(sensorLevel(modelData))
+                    font.pixelSize: 10
+                    font.weight: Font.Bold
+                    font.family: "monospace"
+                }
+
+                Text {
+                    id: nameText
+                    x: 4; y: valueText.implicitHeight
+                    text: modelData.label
+                    color: Theme.textDisabled
+                    font.pixelSize: 8
+                    font.weight: Font.Medium
+                    font.letterSpacing: 0.3
                 }
             }
         }
     }
 
-    // Tap areas for each sensor
-    Repeater {
-        model: sensors
-
-        MouseArea {
-            x: modelData.cx * caseView.width - 14
-            y: modelData.cy * caseView.height - 14
-            width: 28; height: 28
-
-            onClicked: {
-                if (selectedSensor === index) selectedSensor = -1
-                else selectedSensor = index
-                caseCanvas.requestPaint()
-            }
-        }
-    }
-
-    // Sensor temperature labels
-    Repeater {
-        model: sensors
-
-        Text {
-            x: modelData.cx * caseView.width + 12
-            y: modelData.cy * caseView.height - 7
-            text: sensorDisplayValue(modelData)
-            color: levelColor(sensorLevel(modelData))
-            font.pixelSize: 10
-            font.weight: Font.Bold
-            font.family: "monospace"
-        }
-    }
-
-    // Sensor name labels
-    Repeater {
-        model: sensors
-
-        Text {
-            x: modelData.cx * caseView.width + 12
-            y: modelData.cy * caseView.height + 5
-            text: modelData.label
-            color: Theme.textDisabled
-            font.pixelSize: 8
-            font.weight: Font.Medium
-            font.letterSpacing: 0.3
-        }
-    }
-
-    // ── DETAIL OVERLAY ──────────────────────────────────────────────────
     Rectangle {
         id: detailOverlay
         visible: selectedSensor >= 0 && selectedSensor < sensors.length
-        width: 200; height: 100; radius: 6
+        width: 200; height: 120; radius: 6
         color: Theme.bgElevated
         border.color: Theme.accentYellow
         border.width: 1
+        z: 30
 
-        x: visible ? Math.min(Math.max(sensors[selectedSensor].cx * caseView.width - 100, 8), caseView.width - 208) : 0
-        y: visible ? Math.max(sensors[selectedSensor].cy * caseView.height - 110, 4) : 0
+        x: visible ? Math.min(Math.max(stage.x + sensors[selectedSensor].cx * stage.width - 100, 8),
+                              caseView.width - 208) : 0
+        y: visible ? Math.max(stage.y + sensors[selectedSensor].cy * stage.height - 130, 4) : 0
 
         Behavior on x { NumberAnimation { duration: 100 } }
         Behavior on y { NumberAnimation { duration: 100 } }
@@ -385,14 +317,14 @@ Item {
             spacing: 4
 
             Text {
-                text: visible ? sensors[selectedSensor].label : ""
+                text: detailOverlay.visible ? sensors[selectedSensor].label : ""
                 color: Theme.accentYellow
                 font.pixelSize: Theme.fontSectionLabel
                 font.weight: Font.SemiBold
             }
 
             Text {
-                text: visible && sensors[selectedSensor].valid
+                text: detailOverlay.visible && sensors[selectedSensor].valid
                       ? sensorDisplayValue(sensors[selectedSensor])
                       : "—"
                 color: Theme.textPrimary
@@ -404,30 +336,25 @@ Item {
             RowLayout {
                 spacing: 12
                 Text {
-                    property var mm: visible && selectedSensor >= 0 ? getMinMax(selectedSensor) : { min: 0, max: 0 }
-                    property int dec: visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].decimals !== undefined ? sensors[selectedSensor].decimals : 0) : 0
-                    property string unitText: visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].unit || "") : ""
-                    text: mm.min < 9999
-                          ? ("MIN " + mm.min.toFixed(dec) + unitText)
-                          : "MIN —"
+                    property var mm: detailOverlay.visible && selectedSensor >= 0 ? getMinMax(selectedSensor) : { min: 0, max: 0 }
+                    property int dec: detailOverlay.visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].decimals !== undefined ? sensors[selectedSensor].decimals : 0) : 0
+                    property string unitText: detailOverlay.visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].unit || "") : ""
+                    text: mm.min < 9999 ? ("MIN " + mm.min.toFixed(dec) + unitText) : "MIN —"
                     color: Theme.textSecondary
                     font.pixelSize: 9
                     font.family: "monospace"
                 }
                 Text {
-                    property var mm: visible && selectedSensor >= 0 ? getMinMax(selectedSensor) : { min: 0, max: 0 }
-                    property int dec: visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].decimals !== undefined ? sensors[selectedSensor].decimals : 0) : 0
-                    property string unitText: visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].unit || "") : ""
-                    text: mm.max > -9999
-                          ? ("MAX " + mm.max.toFixed(dec) + unitText)
-                          : "MAX —"
+                    property var mm: detailOverlay.visible && selectedSensor >= 0 ? getMinMax(selectedSensor) : { min: 0, max: 0 }
+                    property int dec: detailOverlay.visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].decimals !== undefined ? sensors[selectedSensor].decimals : 0) : 0
+                    property string unitText: detailOverlay.visible && selectedSensor >= 0 && sensors[selectedSensor] ? (sensors[selectedSensor].unit || "") : ""
+                    text: mm.max > -9999 ? ("MAX " + mm.max.toFixed(dec) + unitText) : "MAX —"
                     color: Theme.textSecondary
                     font.pixelSize: 9
                     font.family: "monospace"
                 }
                 Text {
-                    property int lvl: visible && selectedSensor >= 0
-                                      ? sensorLevel(sensors[selectedSensor]) : -1
+                    property int lvl: detailOverlay.visible && selectedSensor >= 0 ? sensorLevel(sensors[selectedSensor]) : -1
                     text: lvl === 0 ? "OK" : (lvl === 1 ? "WARN" : (lvl === 2 ? "CRIT" : "—"))
                     color: levelColor(lvl)
                     font.pixelSize: 9
@@ -442,7 +369,6 @@ Item {
                 color: Theme.bgSecondary
                 border.color: Theme.border
                 border.width: 1
-
                 Text {
                     anchors.centerIn: parent
                     text: "MEER INFO"
@@ -450,7 +376,6 @@ Item {
                     font.pixelSize: 10
                     font.weight: Font.SemiBold
                 }
-
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
@@ -460,22 +385,11 @@ Item {
                 }
             }
         }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: { selectedSensor = -1; caseCanvas.requestPaint() }
-        }
     }
 
-    // Dismiss on background tap
     MouseArea {
         anchors.fill: parent
         z: -1
-        onClicked: {
-            if (selectedSensor >= 0) {
-                selectedSensor = -1
-                caseCanvas.requestPaint()
-            }
-        }
+        onClicked: { if (selectedSensor >= 0) selectedSensor = -1 }
     }
 }

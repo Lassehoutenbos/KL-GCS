@@ -4,315 +4,384 @@ import QtQuick.Layouts
 import PICODE
 
 Rectangle {
+    id: root
     color: Theme.bgPrimary
 
-    property string searchText:    ""
-    property string activeGroup:   "ALL"
+    property string searchText: ""
     property string editParamName: ""
     property double editParamValue: 0.0
     property string editInputText: ""
 
-    // Param group prefix filters
-    readonly property var groups: [
-        { label: "ALL",      prefix: "" },
-        { label: "ATTITUDE", prefix: "ATC_" },
-        { label: "TUNING",   prefix: "TUNE" },
-        { label: "BATTERY",  prefix: "BATT" },
-        { label: "GPS",      prefix: "GPS_" },
-        { label: "COMPASS",  prefix: "COMPASS" },
-        { label: "FAILSAFE", prefix: "FS_" },
-        { label: "RADIO",    prefix: "RC_" },
-        { label: "MOTORS",   prefix: "MOT_" }
-    ]
+    // ── Per-param value history (in-memory, last N samples) ──────────────────
+    // Map: name -> array of {t, v}
+    property var paramHistory: ({})
+    readonly property int historyLimit: 80
 
-    // Filtered params list
-    readonly property var filteredParams: {
-        var list = []
-        var groupPrefix = ""
-        for (var g = 0; g < groups.length; g++) {
-            if (groups[g].label === activeGroup) { groupPrefix = groups[g].prefix; break }
+    Connections {
+        target: GCSState
+        function onParamsChanged() {
+            var t = Date.now()
+            var h = paramHistory
+            var changed = false
+            for (var i = 0; i < GCSState.params.length; i++) {
+                var p = GCSState.params[i]
+                if (!p || !p.name) continue
+                var v = parseFloat(p.value)
+                if (isNaN(v)) continue
+                var arr = h[p.name] ? h[p.name].slice() : []
+                var last = arr.length > 0 ? arr[arr.length - 1] : null
+                if (!last || Math.abs(last.v - v) > 1e-9 || (t - last.t) > 30000) {
+                    arr.push({ t: t, v: v })
+                    if (arr.length > historyLimit) arr.shift()
+                    h[p.name] = arr
+                    changed = true
+                }
+            }
+            if (changed) paramHistory = h
         }
-        for (var i = 0; i < GCSState.params.length; i++) {
-            var p = GCSState.params[i]
-            var name = p.name ? p.name.toString() : ""
-            if (groupPrefix && !name.startsWith(groupPrefix)) continue
-            if (searchText && !name.toUpperCase().includes(searchText.toUpperCase())) continue
-            list.push(p)
-        }
-        return list
     }
 
-    RowLayout {
+    // ── Group definitions ────────────────────────────────────────────────────
+    readonly property var groupDefs: [
+        { label: "ATTITUDE / TUNING",  prefixes: ["ATC_", "TUNE"],     accent: Theme.accentYellow },
+        { label: "MOTORS",             prefixes: ["MOT_"],             accent: Theme.accentYellow },
+        { label: "BATTERY",            prefixes: ["BATT"],             accent: Theme.accentBlue   },
+        { label: "GPS / COMPASS",      prefixes: ["GPS_", "COMPASS"],  accent: Theme.accentBlue   },
+        { label: "RADIO / RC",         prefixes: ["RC_", "SERIAL"],    accent: Theme.accentBlue   },
+        { label: "FAILSAFE",           prefixes: ["FS_", "FENCE"],     accent: Theme.statusWarn   },
+        { label: "OTHER",              prefixes: [],                   accent: Theme.textDisabled }
+    ]
+
+    property var collapsedGroups: ({})
+
+    function paramMatchesGroup(name, group) {
+        if (group.prefixes.length === 0) {
+            // OTHER: anything not matched by an earlier group
+            for (var g = 0; g < groupDefs.length - 1; g++) {
+                var gd = groupDefs[g]
+                for (var i = 0; i < gd.prefixes.length; i++) {
+                    if (name.indexOf(gd.prefixes[i]) === 0) return false
+                }
+            }
+            return true
+        }
+        for (var j = 0; j < group.prefixes.length; j++) {
+            if (name.indexOf(group.prefixes[j]) === 0) return true
+        }
+        return false
+    }
+
+    function paramsInGroup(group) {
+        var out = []
+        var s = searchText.toUpperCase()
+        for (var i = 0; i < GCSState.params.length; i++) {
+            var p = GCSState.params[i]
+            var n = p.name ? p.name.toString() : ""
+            if (!paramMatchesGroup(n, group)) continue
+            if (s && n.toUpperCase().indexOf(s) < 0) continue
+            out.push(p)
+        }
+        return out
+    }
+
+    function dirtyCount() {
+        var n = 0
+        for (var i = 0; i < GCSState.params.length; i++)
+            if (GCSState.params[i].dirty) n++
+        return n
+    }
+
+    function fmtValue(v) {
+        if (v === undefined || v === null) return "--"
+        var f = parseFloat(v)
+        if (isNaN(f)) return v.toString()
+        if (Math.abs(f) >= 1000) return f.toFixed(1)
+        if (Math.abs(f) >= 1)    return f.toFixed(3)
+        return f.toFixed(4)
+    }
+
+    ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // ── LEFT SIDEBAR  220px ───────────────────────────────────────────────
+        // ══════════════ TOP TOOLBAR ══════════════
         Rectangle {
-            Layout.preferredWidth: 220
-            Layout.fillHeight: true
+            Layout.fillWidth: true
+            Layout.preferredHeight: 56
             color: Theme.bgSecondary
-            border.color: Theme.border; border.width: 1
+            border.color: Theme.border
+            border.width: 1
 
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
+            RowLayout {
+                anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                spacing: 10
 
-                // Search header
-                Item {
-                    Layout.fillWidth: true; height: 32
-                    Rectangle { anchors { left: parent.left; top: parent.top; bottom: parent.bottom } width: 3; color: Theme.accentBlue }
+                Text {
+                    text: "PARAMS"
+                    color: Theme.textSecondary
+                    font.pixelSize: Theme.fontPageTitle; font.weight: Font.Bold; font.letterSpacing: 1.2
+                }
+
+                // Stats chip
+                Rectangle {
+                    width: countLbl.width + 16; height: 26; radius: 3
+                    color: Theme.bgElevated; border.color: Theme.border; border.width: 1
                     Text {
-                        anchors { left: parent.left; leftMargin: 11; verticalCenter: parent.verticalCenter }
-                        text: "SEARCH"
-                        color: Theme.textSecondary; font.pixelSize: Theme.fontPageTitle; font.weight: Font.SemiBold; font.letterSpacing: 0.8
+                        id: countLbl
+                        anchors.centerIn: parent
+                        text: GCSState.params.length + " params · " + dirtyCount() + " dirty"
+                        color: dirtyCount() > 0 ? Theme.statusWarn : Theme.textDisabled
+                        font.pixelSize: 10; font.family: Theme.fontMono; font.weight: Font.SemiBold
                     }
                 }
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-                // Search field
+                // Search
                 Rectangle {
-                    Layout.fillWidth: true; height: 44
-                    Layout.leftMargin: 8; Layout.rightMargin: 8; Layout.topMargin: 6; Layout.bottomMargin: 4
+                    Layout.fillWidth: true
+                    height: 38
                     radius: 4
-                    color: Theme.bgElevated; border.color: Theme.accentBlue; border.width: 1
+                    color: Theme.bgElevated; border.color: searchInput.activeFocus ? Theme.accentBlue : Theme.border
+                    border.width: 1
                     RowLayout {
-                        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                        spacing: 6
+                        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                        spacing: 8
                         Text { text: "⌕"; color: Theme.textDisabled; font.pixelSize: 14 }
                         TextInput {
+                            id: searchInput
                             Layout.fillWidth: true
                             text: searchText
                             color: Theme.textPrimary
-                            font.pixelSize: Theme.fontSectionLabel
+                            font.pixelSize: Theme.fontSectionLabel; font.family: Theme.fontMono
                             onTextChanged: searchText = text
                             clip: true
                         }
+                        Text {
+                            visible: searchText.length > 0
+                            text: "✕"
+                            color: Theme.textDisabled; font.pixelSize: 12
+                            MouseArea { anchors.fill: parent; onClicked: { searchText = ""; searchInput.text = "" } }
+                        }
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border; Layout.topMargin: 2 }
-
-                // Groups header
-                Item {
-                    Layout.fillWidth: true; height: 32
-                    Rectangle { anchors { left: parent.left; top: parent.top; bottom: parent.bottom } width: 3; color: Theme.accentYellow }
-                    Text {
-                        anchors { left: parent.left; leftMargin: 11; verticalCenter: parent.verticalCenter }
-                        text: "GROUPS"
-                        color: Theme.textSecondary; font.pixelSize: Theme.fontPageTitle; font.weight: Font.SemiBold; font.letterSpacing: 0.8
-                    }
+                BigButton {
+                    label: "REFRESH"
+                    Layout.preferredWidth: 130; Layout.preferredHeight: 38
+                    onClicked: GCSState.sendParamRefresh()
                 }
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
-
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    topMargin: 4; bottomMargin: 4; leftMargin: 6; rightMargin: 6
-                    clip: true
-                    model: groups
-                    spacing: 2
-                    delegate: Rectangle {
-                        width: parent ? parent.width - 12 : 0
-                        height: Theme.minTouchSize - 8
-                        radius: 4
-                        color: activeGroup === modelData.label ? Qt.rgba(0.89, 0.82, 0.29, 0.10) : "transparent"
-                        border.color: activeGroup === modelData.label ? Theme.accentYellow : "transparent"
-                        border.width: 1
-                        Rectangle {
-                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                            width: 3; radius: 1.5; color: Theme.accentYellow
-                            visible: activeGroup === modelData.label
-                        }
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: activeGroup === modelData.label ? 10 : 8 }
-                            spacing: 6
-                            Text {
-                                text: modelData.label
-                                color: activeGroup === modelData.label ? Theme.accentYellow : Theme.textSecondary
-                                font.pixelSize: Theme.fontSectionLabel; font.weight: activeGroup === modelData.label ? Font.SemiBold : Font.Medium
-                                Behavior on color { ColorAnimation { duration: 100 } }
-                            }
-                        }
-                        MouseArea { anchors.fill: parent; onClicked: { activeGroup = modelData.label; searchText = "" } }
-                    }
+                BigButton {
+                    label: "WRITE"
+                    active: dirtyCount() > 0
+                    Layout.preferredWidth: 130; Layout.preferredHeight: 38
+                    onClicked: { if (dirtyCount() > 0) writeConfirm.open() }
                 }
             }
         }
 
-        Rectangle { width: 1; Layout.fillHeight: true; color: Theme.border }
+        // ══════════════ EMPTY STATE ══════════════
+        Item {
+            Layout.fillWidth: true; Layout.fillHeight: true
+            visible: GCSState.params.length === 0
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 8
+                Text {
+                    text: "No parameters loaded"
+                    color: Theme.textDisabled
+                    font.pixelSize: Theme.fontPageTitle; font.weight: Font.SemiBold; font.letterSpacing: 0.8
+                    Layout.alignment: Qt.AlignHCenter
+                }
+                Text {
+                    text: "Press REFRESH to download from drone."
+                    color: Theme.textDisabled
+                    font.pixelSize: Theme.fontSectionLabel
+                    Layout.alignment: Qt.AlignHCenter
+                }
+            }
+        }
 
-        // ── RIGHT: PARAM LIST + ACTIONS ───────────────────────────────────────
-        ColumnLayout {
+        // ══════════════ GROUPED LIST ══════════════
+        ListView {
+            id: groupList
             Layout.fillWidth: true
             Layout.fillHeight: true
+            visible: GCSState.params.length > 0
+            clip: true
+            model: groupDefs
             spacing: 0
 
-            // Param count header
-            Item {
-                Layout.fillWidth: true; height: 32
-                Rectangle { anchors { left: parent.left; top: parent.top; bottom: parent.bottom } width: 3; color: Theme.accentYellow }
-                RowLayout {
-                    anchors { fill: parent; leftMargin: 11; rightMargin: 10 }
-                    Text {
-                        text: "PARAMETERS"
-                        color: Theme.textSecondary; font.pixelSize: Theme.fontPageTitle; font.weight: Font.SemiBold; font.letterSpacing: 0.8
-                        Layout.fillWidth: true
-                    }
+            delegate: Column {
+                width: groupList.width
+
+                property var groupItems: paramsInGroup(modelData)
+                property bool collapsed: collapsedGroups[modelData.label] === true
+                property bool hasMatches: groupItems.length > 0
+
+                visible: hasMatches
+
+                // Group header
+                Rectangle {
+                    width: parent.width
+                    height: 34
+                    color: Theme.bgSecondary
+                    border.color: Theme.border
+                    border.width: 1
+
                     Rectangle {
-                        width: paramCountLabel.width + 12; height: 20; radius: 3
-                        color: Theme.bgElevated; border.color: Theme.border; border.width: 1
-                        Text {
-                            id: paramCountLabel
-                            anchors.centerIn: parent
-                            text: filteredParams.length + " / " + GCSState.params.length
-                            color: Theme.textDisabled; font.pixelSize: Theme.fontSectionLabel; font.family: "monospace"
-                        }
+                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                        width: 3
+                        color: modelData.accent
                     }
-                }
-            }
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
-
-            // Empty state
-            Item {
-                Layout.fillWidth: true; Layout.fillHeight: true
-                visible: GCSState.params.length === 0
-                Text {
-                    anchors.centerIn: parent
-                    text: "No parameters loaded.\nPress REFRESH to download from drone."
-                    color: Theme.textDisabled; font.pixelSize: Theme.fontSectionLabel
-                    horizontalAlignment: Text.AlignHCenter
-                }
-            }
-
-            // Parameter list
-            ListView {
-                id: paramList
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                visible: GCSState.params.length > 0
-                clip: true
-                model: filteredParams
-                spacing: 0
-
-                delegate: Rectangle {
-                    width: paramList.width
-                    height: 56
-                    color: index % 2 === 0 ? Theme.bgPrimary : Theme.bgSecondary
-                    border.color: modelData.dirty ? Theme.statusWarn : "transparent"
-                    border.width: modelData.dirty ? 1 : 0
 
                     RowLayout {
-                        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                        anchors { fill: parent; leftMargin: 11; rightMargin: 10 }
                         spacing: 8
 
-                        // Dirty indicator
-                        Rectangle {
-                            width: 4; height: 36; radius: 2
-                            color: modelData.dirty ? Theme.statusWarn : "transparent"
+                        Text {
+                            text: parent.parent.collapsed ? "▶" : "▼"
+                            color: modelData.accent
+                            font.pixelSize: 10; font.weight: Font.Bold
+                            Layout.preferredWidth: 12
                         }
 
                         Text {
-                            text: modelData.name
+                            text: modelData.label
                             color: Theme.textSecondary
-                            font.pixelSize: Theme.fontSectionLabel; font.weight: Font.Medium
-                            font.family: "monospace"
-                            Layout.preferredWidth: 220
-                            elide: Text.ElideRight
+                            font.pixelSize: Theme.fontSectionLabel
+                            font.weight: Font.SemiBold
+                            font.letterSpacing: 0.6
                         }
 
                         Item { Layout.fillWidth: true }
 
-                        Text {
-                            text: {
-                                var v = modelData.value
-                                if (v === undefined || v === null) return "--"
-                                return parseFloat(v).toFixed(3)
-                            }
-                            color: modelData.dirty ? Theme.statusWarn : Theme.textPrimary
-                            font.pixelSize: Theme.fontValueSmall; font.weight: Font.SemiBold
-                            font.family: "monospace"
-                            Layout.preferredWidth: 90
-                            horizontalAlignment: Text.AlignRight
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: {
-                                    editParamName  = modelData.name
-                                    editParamValue = modelData.value !== undefined ? parseFloat(modelData.value) : 0.0
-                                    editInputText  = editParamValue.toFixed(4)
-                                    paramEditOverlay.visible = true
-                                }
+                        Rectangle {
+                            width: gcLbl.width + 12; height: 18; radius: 3
+                            color: Theme.bgElevated; border.color: Theme.border; border.width: 1
+                            Text {
+                                id: gcLbl
+                                anchors.centerIn: parent
+                                text: groupItems.length + (groupItems.length === 1 ? " param" : " params")
+                                color: Theme.textDisabled
+                                font.pixelSize: 9; font.family: Theme.fontMono
                             }
                         }
+                    }
 
-                        // Decrement button
-                        Rectangle {
-                            id: decBtn
-                            width: 52; height: 44; radius: 4
-                            color: decMa.pressed ? Theme.bgElevated : "transparent"
-                            border.color: decMa.containsMouse ? Theme.border : "transparent"; border.width: 1
-                            Behavior on color { ColorAnimation { duration: 80 } }
-                            scale: decMa.pressed ? 0.92 : 1.0
-                            Behavior on scale { NumberAnimation { duration: 70 } }
-                            Text { anchors.centerIn: parent; text: "–"; color: Theme.textSecondary; font.pixelSize: 18; font.weight: Font.Bold }
-                            MouseArea {
-                                id: decMa; anchors.fill: parent; hoverEnabled: true
-                                onClicked: {
-                                    var newV = parseFloat(modelData.value) - 0.01
-                                    GCSState.setParamDirty(modelData.name, Math.round(newV * 10000) / 10000)
-                                }
-                            }
-                        }
-
-                        // Increment button
-                        Rectangle {
-                            id: incBtn
-                            width: 52; height: 44; radius: 4
-                            color: incMa.pressed ? Theme.bgElevated : "transparent"
-                            border.color: incMa.containsMouse ? Theme.border : "transparent"; border.width: 1
-                            Behavior on color { ColorAnimation { duration: 80 } }
-                            scale: incMa.pressed ? 0.92 : 1.0
-                            Behavior on scale { NumberAnimation { duration: 70 } }
-                            Text { anchors.centerIn: parent; text: "+"; color: Theme.accentYellow; font.pixelSize: 18; font.weight: Font.Bold }
-                            MouseArea {
-                                id: incMa; anchors.fill: parent; hoverEnabled: true
-                                onClicked: {
-                                    var newV = parseFloat(modelData.value) + 0.01
-                                    GCSState.setParamDirty(modelData.name, Math.round(newV * 10000) / 10000)
-                                }
-                            }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            var c = collapsedGroups
+                            c[modelData.label] = !c[modelData.label]
+                            collapsedGroups = ({})
+                            for (var k in c) collapsedGroups[k] = c[k]
                         }
                     }
                 }
-            }
 
-            // WRITE / REFRESH buttons
-            Rectangle {
-                Layout.fillWidth: true; height: 64
-                color: Theme.bgSecondary; border.color: Theme.border; border.width: 1
+                // Group rows
+                Repeater {
+                    model: parent.collapsed ? [] : parent.groupItems
+                    delegate: Rectangle {
+                        width: groupList.width
+                        height: 48
+                        color: index % 2 === 0 ? Theme.bgPrimary : Theme.bgSecondary
 
-                RowLayout {
-                    anchors { fill: parent; margins: 8 }
-                    spacing: 8
+                        // Dirty edge bar
+                        Rectangle {
+                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                            width: 3
+                            color: modelData.dirty ? Theme.statusWarn : "transparent"
+                        }
 
-                    BigButton {
-                        label: "WRITE TO DRONE"
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        active: true
-                        onClicked: writeConfirm.open()
-                    }
+                        RowLayout {
+                            anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
+                            spacing: 8
 
-                    BigButton {
-                        label: "REFRESH FROM DRONE"
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        onClicked: GCSState.sendParamRefresh()
+                            // Name
+                            Text {
+                                text: modelData.name
+                                color: Theme.textSecondary
+                                font.pixelSize: Theme.fontSectionLabel; font.family: Theme.fontMono
+                                font.weight: Font.Medium
+                                Layout.preferredWidth: 200
+                                elide: Text.ElideRight
+                            }
+
+                            // Sparkline
+                            TimeSeriesChart {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 36
+                                sparkline: true
+                                series: [{
+                                    color: modelData.dirty ? Theme.statusWarn : Theme.accentBlue,
+                                    data: paramHistory[modelData.name] || []
+                                }]
+                            }
+
+                            // Value
+                            Text {
+                                text: fmtValue(modelData.value)
+                                color: modelData.dirty ? Theme.statusWarn : Theme.textPrimary
+                                font.pixelSize: Theme.fontValueSmall; font.weight: Font.SemiBold
+                                font.family: Theme.fontMono
+                                Layout.preferredWidth: 96
+                                horizontalAlignment: Text.AlignRight
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        editParamName  = modelData.name
+                                        editParamValue = parseFloat(modelData.value) || 0.0
+                                        editInputText  = editParamValue.toFixed(4)
+                                        paramEditOverlay.visible = true
+                                    }
+                                }
+                            }
+
+                            // ± buttons
+                            Rectangle {
+                                width: 36; height: 36; radius: 4
+                                color: decMa.pressed ? Theme.bgElevated : "transparent"
+                                border.color: Theme.border; border.width: 1
+                                Text { anchors.centerIn: parent; text: "−"; color: Theme.textSecondary; font.pixelSize: 16; font.weight: Font.Bold }
+                                MouseArea {
+                                    id: decMa; anchors.fill: parent
+                                    onClicked: {
+                                        var step = Math.abs(parseFloat(modelData.value)) >= 1 ? 0.1 : 0.01
+                                        var newV = parseFloat(modelData.value) - step
+                                        GCSState.setParamDirty(modelData.name, Math.round(newV * 10000) / 10000)
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: 36; height: 36; radius: 4
+                                color: incMa.pressed ? Theme.bgElevated : "transparent"
+                                border.color: Theme.border; border.width: 1
+                                Text { anchors.centerIn: parent; text: "+"; color: Theme.accentYellow; font.pixelSize: 16; font.weight: Font.Bold }
+                                MouseArea {
+                                    id: incMa; anchors.fill: parent
+                                    onClicked: {
+                                        var step = Math.abs(parseFloat(modelData.value)) >= 1 ? 0.1 : 0.01
+                                        var newV = parseFloat(modelData.value) + step
+                                        GCSState.setParamDirty(modelData.name, Math.round(newV * 10000) / 10000)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom hairline
+                        Rectangle {
+                            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                            height: 1
+                            color: Theme.border
+                            opacity: 0.4
+                        }
                     }
                 }
             }
         }
     }
 
-    // ── Parameter edit overlay ────────────────────────────────────────────────
+    // ══════════════ EDIT OVERLAY ══════════════
     Rectangle {
         id: paramEditOverlay
         anchors.fill: parent
@@ -324,15 +393,36 @@ Rectangle {
 
         Rectangle {
             anchors.centerIn: parent
-            width: 440; height: 280
+            width: 480; height: 340
             color: Theme.bgSecondary; border.color: Theme.border; border.width: 1; radius: 8
 
             ColumnLayout {
                 anchors { fill: parent; margins: 16 }
                 spacing: 10
 
-                Text { text: editParamName; color: Theme.textPrimary; font.pixelSize: 16; font.weight: Font.SemiBold }
+                Text { text: editParamName; color: Theme.textPrimary; font.pixelSize: 16; font.weight: Font.SemiBold; font.family: Theme.fontMono }
                 Text { text: "Current:  " + editParamValue.toFixed(4); color: Theme.textSecondary; font.pixelSize: Theme.fontSectionLabel }
+
+                // Mini history graph
+                Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 80
+                    color: Theme.bgElevated; border.color: Theme.border; border.width: 1; radius: 4
+                    TimeSeriesChart {
+                        anchors { fill: parent; margins: 4 }
+                        sparkline: true
+                        series: [{
+                            color: Theme.accentBlue,
+                            data: paramHistory[editParamName] || []
+                        }]
+                    }
+                    Text {
+                        anchors.centerIn: parent
+                        visible: !(paramHistory[editParamName] && paramHistory[editParamName].length > 1)
+                        text: "no history yet"
+                        color: Theme.textDisabled; font.pixelSize: 10
+                    }
+                }
+
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
                 Rectangle {
@@ -342,7 +432,7 @@ Rectangle {
                         anchors { fill: parent; leftMargin: 12; rightMargin: 12; verticalCenter: parent.verticalCenter }
                         text: editInputText
                         color: Theme.textPrimary
-                        font.pixelSize: Theme.fontValueSmall; font.weight: Font.SemiBold
+                        font.pixelSize: Theme.fontValueSmall; font.weight: Font.SemiBold; font.family: Theme.fontMono
                         inputMethodHints: Qt.ImhFormattedNumbersOnly
                         validator: DoubleValidator { }
                         onTextChanged: editInputText = text
@@ -355,14 +445,14 @@ Rectangle {
 
                     BigButton {
                         label: "CANCEL"
-                        Layout.preferredWidth: 180; Layout.preferredHeight: 56
+                        Layout.fillWidth: true; Layout.preferredHeight: 56
                         onClicked: paramEditOverlay.visible = false
                     }
 
                     BigButton {
                         label: "SET"
                         active: true
-                        Layout.preferredWidth: 180; Layout.preferredHeight: 56
+                        Layout.fillWidth: true; Layout.preferredHeight: 56
                         onClicked: {
                             var v = parseFloat(editInputText)
                             if (!isNaN(v)) GCSState.setParamDirty(editParamName, v)
@@ -374,11 +464,10 @@ Rectangle {
         }
     }
 
-    // ── Write confirm overlay ─────────────────────────────────────────────────
     ConfirmOverlay {
         id: writeConfirm
         title: "WRITE PARAMS TO DRONE"
-        body: "All changed parameters will be sent to the drone. Ensure the drone is disarmed before writing critical params."
+        body: dirtyCount() + " changed parameter(s) will be sent to the drone. Ensure the drone is disarmed before writing critical params."
         confirmLabel: "WRITE"
         destructive: false
         onConfirmed: {

@@ -1,0 +1,637 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600" fill="none">
+<defs>
+  <pattern id="hazardPattern" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="14" height="14" fill="#f2c319"/>
+    <rect width="6" height="14" fill="#111"/>
+  </pattern>
+  <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <style>
+    .bg { fill: #0b0d10; }
+    .case-shell { fill:#d6d8d2; stroke:#f4f4ef; stroke-width:4; }
+    .panel-bg { fill:#252a2e; stroke:#e6e8e5; stroke-width:3; }
+    .rim-line { fill:none; stroke:#16191c; stroke-width:3; }
+    .module { fill:#30353a; stroke:#eef2f1; stroke-width:2.5; }
+    .module-dark { fill:#15191e; stroke:#e8eceb; stroke-width:2; }
+    .panel { fill:#252a2e; stroke:#edf2ef; stroke-width:2; }
+    .screen-frame { fill:#15191e; stroke:#dfe5e1; stroke-width:3; }
+    .screen-fill { fill:#060809; stroke:#7a837f; stroke-width:1.5; }
+    .slot-dark { fill:#080a0c; stroke:#e7ece8; stroke-width:2; }
+    .label-plate { fill:#53585c; stroke:#eef2ef; stroke-width:2.5; }
+    .open-bay { fill:#16191c; stroke:#e8ece8; stroke-width:2.2; }
+    .bay-text { fill:#596168; font: 600 16px Arial, sans-serif; letter-spacing:2px; }
+    .vent-frame { fill:#1a1d20; stroke:#edf2ef; stroke-width:2; }
+    .hole { fill:#c8d0cb; stroke:none; }
+    .hazard { fill:url(#hazardPattern); stroke:#eef2ef; stroke-width:2.2; }
+    .warn-tri { fill:#f2c319; stroke:#111; stroke-width:3; }
+    .warn-text { fill:#111; font: 800 30px Arial, sans-serif; dominant-baseline:middle; }
+    .fan-ring { fill:#141719; stroke:#eef2ef; stroke-width:2; }
+    .fan-blade { stroke:#9da6a1; stroke-width:5; stroke-linecap:round; }
+    .fan-hub { fill:#b7bdb8; stroke:#111; stroke-width:2; }
+    .spec-label { fill:#bfc4bf; stroke:#f6f7f4; stroke-width:1.5; }
+    .spec { fill:#111; font: 700 9px Arial, sans-serif; dominant-baseline:middle; }
+    .io-panel { fill:#d8dcd8; stroke:#f8faf8; stroke-width:2; }
+    .usb { fill:#164d78; stroke:#f8faf8; stroke-width:1.2; }
+    .hatch { fill:#2b3035; stroke:#eef2ef; stroke-width:2; }
+    .tray { fill:#111519; stroke:#dde5e1; stroke-width:2; }
+    .tray-large { fill:#272c31; stroke:#eef2ef; stroke-width:2.5; }
+    .tray-inner { fill:#15191d; stroke:#3d454b; stroke-width:1.5; }
+    .pcb { fill:#2e7d4f; stroke:#eaf3e9; stroke-width:2; }
+    .connector { fill:#101315; stroke:#e6eae6; stroke-width:1.6; }
+    .pcb-trace { stroke:#d7edcc; stroke-width:2; }
+    .switch-base { fill:url(#hazardPattern); stroke:#edf2ef; stroke-width:2; }
+    .switch-red { fill:#d73434; stroke:#ffb3a8; stroke-width:2; }
+    .button { fill:#15191d; stroke:#dce4df; stroke-width:1.6; }
+    .launch-box { fill:url(#hazardPattern); stroke:#edf2ef; stroke-width:2.5; }
+    .number-plate { fill:#f2f2ec; stroke:#111; stroke-width:1.6; }
+    .big-number { fill:#111; font: 800 28px Arial, sans-serif; dominant-baseline:middle; }
+    .keyboard-body { fill:#101316; stroke:#e5ebe8; stroke-width:2; }
+    .key { fill:#2b3036; stroke:#7e8783; stroke-width:1.2; }
+    .keytxt { fill:#e9eee9; font: 600 10px Arial, sans-serif; dominant-baseline:middle; }
+    .knob { fill:#111519; stroke:#aeb8b2; stroke-width:2; }
+    .power-button { fill:#e6ece8; stroke:#1c1c1c; stroke-width:2; }
+    .led-green { fill:#3bff6b; stroke:#111; stroke-width:1; }
+    .track-ring { fill:#111519; stroke:#e6ece8; stroke-width:3; }
+    .track-ball { fill:#444b52; stroke:#cbd5d0; stroke-width:2; }
+    .metal { fill:#cdd1cc; stroke:#111; stroke-width:2; }
+    .metal-dark { fill:#848b86; stroke:#111; stroke-width:2; }
+    .handle-outer { fill:#d3d6d1; stroke:#111; stroke-width:2.5; }
+    .handle-inner { fill:#1c1f22; stroke:#eef2ef; stroke-width:2; }
+    .antenna-line { stroke:#0b0b0b; stroke-width:9; stroke-linecap:round; }
+    .antenna-body { fill:#1b1f23; stroke:#dce2df; stroke-width:2; }
+    .thin { stroke:#e7ece8; stroke-width:1.4; fill:none; }
+    .line { stroke:#e9efec; stroke-width:2.2; fill:none; }
+    .arrow-line { stroke:#e9efec; stroke-width:3; fill:none; stroke-dasharray:9 8; }
+    .cable { stroke:#111; stroke-width:5; fill:none; stroke-linecap:round; }
+    .label { fill:#f1f5f2; font: 800 17px Arial, sans-serif; letter-spacing:2px; dominant-baseline:middle; }
+    .title { fill:#f1f5f2; font: 700 26px Arial, sans-serif; letter-spacing:4px; dominant-baseline:middle; }
+    .tiny { fill:#f2f5f2; font: 700 11px Arial, sans-serif; letter-spacing:1px; dominant-baseline:middle; }
+    .component { cursor:pointer; }
+    .component:hover { filter:url(#softGlow); opacity:.92; }
+    .status-ok .module, .status-ok .screen-frame, .status-ok .launch-box, .status-ok .switch-base { stroke:#22c55e; }
+    .status-warning .module, .status-warning .screen-frame, .status-warning .launch-box, .status-warning .switch-base { stroke:#facc15; }
+    .status-fault .module, .status-fault .screen-frame, .status-fault .launch-box, .status-fault .switch-base { stroke:#ef4444; }
+  </style>
+</defs>
+<rect x="0.0" y="0.0" width="1200.0" height="1600.0" rx="0" ry="0" class="bg" />
+<g id="case_lid_shell" class="component" >
+<rect x="150.0" y="110.0" width="900.0" height="570.0" rx="26" ry="26" class="case-shell" />
+<rect x="174.0" y="138.0" width="852.0" height="512.0" rx="18" ry="18" class="panel-bg" />
+<rect x="158.0" y="118.0" width="884.0" height="554.0" rx="22" ry="22" class="rim-line" />
+<rect x="166.0" y="126.0" width="868.0" height="538.0" rx="22" ry="22" class="rim-line" />
+</g>
+<g id="case_base_shell" class="component" >
+<rect x="125.0" y="705.0" width="950.0" height="705.0" rx="26" ry="26" class="case-shell" />
+<rect x="156.0" y="730.0" width="888.0" height="633.0" rx="18" ry="18" class="panel-bg" />
+<rect x="133.0" y="713.0" width="934.0" height="689.0" rx="22" ry="22" class="rim-line" />
+<rect x="142.0" y="722.0" width="916.0" height="671.0" rx="22" ry="22" class="rim-line" />
+</g>
+<g id="hinges" class="component" >
+<rect x="285.0" y="675.0" width="80.0" height="24.0" rx="5" ry="5" class="metal" />
+<line x1="295.0" y1="687.0" x2="355.0" y2="687.0" class="thin" />
+<circle cx="301.0" cy="687.0" r="3.0" class="bolt" />
+<circle cx="349.0" cy="687.0" r="3.0" class="bolt" />
+<rect x="560.0" y="675.0" width="80.0" height="24.0" rx="5" ry="5" class="metal" />
+<line x1="570.0" y1="687.0" x2="630.0" y2="687.0" class="thin" />
+<circle cx="576.0" cy="687.0" r="3.0" class="bolt" />
+<circle cx="624.0" cy="687.0" r="3.0" class="bolt" />
+<rect x="835.0" y="675.0" width="80.0" height="24.0" rx="5" ry="5" class="metal" />
+<line x1="845.0" y1="687.0" x2="905.0" y2="687.0" class="thin" />
+<circle cx="851.0" cy="687.0" r="3.0" class="bolt" />
+<circle cx="899.0" cy="687.0" r="3.0" class="bolt" />
+</g>
+<g id="antenna" class="component" data-path="comms.antenna">
+<line x1="112.0" y1="170.0" x2="112.0" y2="420.0" class="antenna-line" />
+<rect x="98.0" y="315.0" width="28.0" height="92.0" rx="13" ry="13" class="antenna-body" />
+<rect x="125.0" y="350.0" width="38.0" height="28.0" rx="8" ry="8" class="antenna-body" />
+<path d="M 163 363 C 178 380, 160 416, 145 442" class="thin" />
+</g>
+<g id="top_latches_and_knobs" class="component" >
+<rect x="300.0" y="88.0" width="68.0" height="26.0" rx="8" ry="8" class="metal" />
+<rect x="315.0" y="75.0" width="38.0" height="22.0" rx="4" ry="4" class="metal" />
+<rect x="815.0" y="88.0" width="68.0" height="26.0" rx="8" ry="8" class="metal" />
+<rect x="830.0" y="75.0" width="38.0" height="22.0" rx="4" ry="4" class="metal" />
+<rect x="530.0" y="68.0" width="28.0" height="48.0" rx="8" ry="8" class="antenna-body" />
+<rect x="650.0" y="68.0" width="28.0" height="48.0" rx="8" ry="8" class="antenna-body" />
+</g>
+<g id="led_strip_lid" class="component" data-path="leds.lid_strip">
+<rect x="205.0" y="145.0" width="790.0" height="36.0" rx="4" ry="4" class="module-dark" />
+<rect x="214.0" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="219.0" cy="163.0" r="2.2" class="led-dot" />
+<rect x="234.4" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="239.4" cy="163.0" r="2.2" class="led-dot" />
+<rect x="254.7" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="259.7" cy="163.0" r="2.2" class="led-dot" />
+<rect x="275.1" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="280.1" cy="163.0" r="2.2" class="led-dot" />
+<rect x="295.5" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="300.5" cy="163.0" r="2.2" class="led-dot" />
+<rect x="315.8" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="320.8" cy="163.0" r="2.2" class="led-dot" />
+<rect x="336.2" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="341.2" cy="163.0" r="2.2" class="led-dot" />
+<rect x="356.6" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="361.6" cy="163.0" r="2.2" class="led-dot" />
+<rect x="376.9" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="381.9" cy="163.0" r="2.2" class="led-dot" />
+<rect x="397.3" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="402.3" cy="163.0" r="2.2" class="led-dot" />
+<rect x="417.7" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="422.7" cy="163.0" r="2.2" class="led-dot" />
+<rect x="438.1" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="443.1" cy="163.0" r="2.2" class="led-dot" />
+<rect x="458.4" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="463.4" cy="163.0" r="2.2" class="led-dot" />
+<rect x="478.8" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="483.8" cy="163.0" r="2.2" class="led-dot" />
+<rect x="499.2" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="504.2" cy="163.0" r="2.2" class="led-dot" />
+<rect x="519.5" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="524.5" cy="163.0" r="2.2" class="led-dot" />
+<rect x="539.9" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="544.9" cy="163.0" r="2.2" class="led-dot" />
+<rect x="560.3" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="565.3" cy="163.0" r="2.2" class="led-dot" />
+<rect x="580.6" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="585.6" cy="163.0" r="2.2" class="led-dot" />
+<rect x="601.0" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="606.0" cy="163.0" r="2.2" class="led-dot" />
+<rect x="621.4" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="626.4" cy="163.0" r="2.2" class="led-dot" />
+<rect x="641.7" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="646.7" cy="163.0" r="2.2" class="led-dot" />
+<rect x="662.1" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="667.1" cy="163.0" r="2.2" class="led-dot" />
+<rect x="682.5" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="687.5" cy="163.0" r="2.2" class="led-dot" />
+<rect x="702.8" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="707.8" cy="163.0" r="2.2" class="led-dot" />
+<rect x="723.2" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="728.2" cy="163.0" r="2.2" class="led-dot" />
+<rect x="743.6" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="748.6" cy="163.0" r="2.2" class="led-dot" />
+<rect x="763.9" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="768.9" cy="163.0" r="2.2" class="led-dot" />
+<rect x="784.3" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="789.3" cy="163.0" r="2.2" class="led-dot" />
+<rect x="804.7" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="809.7" cy="163.0" r="2.2" class="led-dot" />
+<rect x="825.1" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="830.1" cy="163.0" r="2.2" class="led-dot" />
+<rect x="845.4" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="850.4" cy="163.0" r="2.2" class="led-dot" />
+<rect x="865.8" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="870.8" cy="163.0" r="2.2" class="led-dot" />
+<rect x="886.2" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="891.2" cy="163.0" r="2.2" class="led-dot" />
+<rect x="906.5" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="911.5" cy="163.0" r="2.2" class="led-dot" />
+<rect x="926.9" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="931.9" cy="163.0" r="2.2" class="led-dot" />
+<rect x="947.3" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="952.3" cy="163.0" r="2.2" class="led-dot" />
+<rect x="967.6" y="150.0" width="10.0" height="26.0" rx="2" ry="2" class="led-cell" />
+<circle cx="972.6" cy="163.0" r="2.2" class="led-dot" />
+</g>
+<g id="screen_left" class="component" data-path="screens.screen_left">
+<rect x="245.0" y="215.0" width="285.0" height="128.0" rx="4" ry="4" class="screen-frame" />
+<rect x="254.0" y="224.0" width="267.0" height="110.0" rx="2" ry="2" class="screen-fill" />
+<text x="387.5" y="360.0" class="tiny" text-anchor="middle" >LEFT DISPLAY</text>
+</g>
+<g id="screen_right" class="component" data-path="screens.screen_right">
+<rect x="665.0" y="215.0" width="285.0" height="128.0" rx="4" ry="4" class="screen-frame" />
+<rect x="674.0" y="224.0" width="267.0" height="110.0" rx="2" ry="2" class="screen-fill" />
+<text x="807.5" y="360.0" class="tiny" text-anchor="middle" >RIGHT DISPLAY</text>
+</g>
+<g id="center_cable_slot" class="component" data-path="mechanical.center_slot">
+<rect x="565.0" y="195.0" width="58.0" height="170.0" rx="20" ry="20" class="slot-dark" />
+<path d="M 584 344 C 593 320, 600 296, 613 270" class="cable" />
+<path d="M 592 346 C 602 322, 610 302, 619 284" class="cable" />
+<path d="M 600 348 C 610 326, 618 314, 624 300" class="cable" />
+</g>
+<g id="remote_controller_label" class="component" >
+<rect x="225.0" y="395.0" width="355.0" height="46.0" rx="14" ry="14" class="label-plate" />
+<text x="402.0" y="419.0" class="title" text-anchor="middle" >Remote controller</text>
+</g>
+<g id="lid_open_remote_bay" class="component" data-path="bays.remote_controller">
+<rect x="225.0" y="455.0" width="235.0" height="175.0" rx="10" ry="10" class="open-bay" />
+<text x="342.0" y="545.0" class="bay-text" text-anchor="middle" >REMOTE BAY</text>
+</g>
+<g id="lid_perforated_vent" class="component" data-path="thermal.lid_vent">
+<rect x="480.0" y="455.0" width="128.0" height="175.0" rx="8" ry="8" class="vent-frame" />
+<circle cx="498.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="480.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="492.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="504.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="516.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="528.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="540.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="552.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="564.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="576.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="588.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="600.0" r="2.4" class="hole" />
+<circle cx="498.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="510.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="522.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="534.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="546.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="558.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="570.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="582.0" cy="612.0" r="2.4" class="hole" />
+<circle cx="594.0" cy="612.0" r="2.4" class="hole" />
+</g>
+<g id="lid_warning_top" class="component" >
+<polygon points="625.0,401.9 604.0,438.1 646.0,438.1" class="warn-tri" />
+<text x="625.0" y="425.0" class="warn-text" text-anchor="middle" >!</text>
+</g>
+<g id="lid_vertical_hazard" class="component" data-path="warnings.lid_vertical_hazard">
+<rect x="598.0" y="455.0" width="54.0" height="170.0" rx="3" ry="3" class="hazard" />
+</g>
+<g id="fan_lid" class="component" data-path="thermal.fan_lid">
+<rect x="900.0" y="455.0" width="66.0" height="66.0" rx="8" ry="8" class="hazard" />
+<circle cx="933.0" cy="488.0" r="22.4" class="fan-ring" />
+<line x1="937.8" y1="490.2" x2="952.1" y2="496.9" class="fan-blade" />
+<line x1="930.8" y1="492.8" x2="924.1" y2="507.1" class="fan-blade" />
+<line x1="928.2" y1="485.8" x2="913.9" y2="479.1" class="fan-blade" />
+<line x1="935.2" y1="483.2" x2="941.9" y2="468.9" class="fan-blade" />
+<circle cx="933.0" cy="488.0" r="7.3" class="fan-hub" />
+</g>
+<g id="lid_spec_label" class="component" >
+<rect x="860.0" y="382.0" width="112.0" height="45.0" rx="4" ry="4" class="spec-label" />
+<text x="920.0" y="398.0" class="spec" text-anchor="middle" >INPUT 12-24V</text>
+<text x="920.0" y="413.0" class="spec" text-anchor="middle" >MODEL RC-1000</text>
+<text x="920.0" y="427.0" class="spec" text-anchor="middle" >CE  MADE IN EU</text>
+</g>
+<g id="lid_usb_and_io" class="component" data-path="io.lid_ports">
+<rect x="625.0" y="555.0" width="112.0" height="58.0" rx="10" ry="10" class="io-panel" />
+<rect x="637.0" y="578.0" width="25.0" height="16.0" rx="3" ry="3" class="usb" />
+<rect x="638.0" y="601.0" width="25.0" height="16.0" rx="3" ry="3" class="usb" />
+<rect x="680.0" y="585.0" width="12.0" height="32.0" rx="5" ry="5" class="slot-dark" />
+<rect x="706.0" y="591.0" width="16.0" height="12.0" rx="4" ry="4" class="slot-dark" />
+</g>
+<g id="lid_lower_slot" class="component" >
+<rect x="625.0" y="626.0" width="112.0" height="28.0" rx="12" ry="12" class="slot-dark" />
+</g>
+<g id="lid_access_hatch" class="component" data-path="mechanical.lid_hatch">
+<rect x="760.0" y="555.0" width="210.0" height="100.0" rx="12" ry="12" class="hatch" />
+<circle cx="865.0" cy="607.0" r="23.0" class="thin" />
+<line x1="865.0" y1="585.0" x2="865.0" y2="630.0" class="thin" />
+</g>
+<g id="upper_left_trays" class="component" data-path="storage.left_trays">
+<rect x="215.0" y="750.0" width="300.0" height="130.0" rx="12" ry="12" class="module" />
+<rect x="235.0" y="770.0" width="255.0" height="36.0" rx="12" ry="12" class="tray" />
+<line x1="350.0" y1="788.0" x2="470.0" y2="788.0" class="arrow-line" />
+<path d="M 470 788 l -14 -8 m 14 8 l -14 8" class="arrow-line" />
+<rect x="235.0" y="815.0" width="255.0" height="36.0" rx="12" ry="12" class="tray" />
+<line x1="350.0" y1="833.0" x2="470.0" y2="833.0" class="arrow-line" />
+<path d="M 470 833 l -14 -8 m 14 8 l -14 8" class="arrow-line" />
+</g>
+<g id="green_distribution_board" class="component" data-path="power.distribution_board">
+<rect x="540.0" y="750.0" width="105.0" height="130.0" rx="8" ry="8" class="pcb" />
+<rect x="570.0" y="765.0" width="70.0" height="22.0" rx="4" ry="4" class="connector" />
+<rect x="570.0" y="845.0" width="70.0" height="22.0" rx="4" ry="4" class="connector" />
+<line x1="580.0" y1="798.0" x2="570.0" y2="832.0" class="pcb-trace" />
+<line x1="593.0" y1="798.0" x2="583.0" y2="832.0" class="pcb-trace" />
+<line x1="606.0" y1="798.0" x2="596.0" y2="832.0" class="pcb-trace" />
+<line x1="619.0" y1="798.0" x2="609.0" y2="832.0" class="pcb-trace" />
+<line x1="632.0" y1="798.0" x2="622.0" y2="832.0" class="pcb-trace" />
+</g>
+<g id="main_power_cluster" class="component" data-path="power.main_cluster">
+<rect x="670.0" y="750.0" width="215.0" height="130.0" rx="10" ry="10" class="module" />
+<text x="777.0" y="862.0" class="tiny" text-anchor="middle" >MAIN POWER</text>
+</g>
+<g id="fuse_switch_1" class="component" data-path="switches.fuse_1">
+<rect x="690.0" y="758.0" width="42.0" height="72.0" rx="5" ry="5" class="switch-base" />
+<rect x="700.0" y="749.0" width="22.0" height="45.0" rx="5" ry="5" class="switch-red" />
+<text x="711.0" y="816.0" class="tiny" text-anchor="middle" >FUSE 1</text>
+</g>
+<g id="fuse_switch_2" class="component" data-path="switches.fuse_2">
+<rect x="755.0" y="758.0" width="42.0" height="72.0" rx="5" ry="5" class="switch-base" />
+<rect x="765.0" y="749.0" width="22.0" height="45.0" rx="5" ry="5" class="switch-red" />
+<text x="776.0" y="816.0" class="tiny" text-anchor="middle" >FUSE 2</text>
+</g>
+<g id="fuse_switch_3" class="component" data-path="switches.fuse_3">
+<rect x="820.0" y="758.0" width="42.0" height="72.0" rx="5" ry="5" class="switch-base" />
+<rect x="830.0" y="749.0" width="22.0" height="45.0" rx="5" ry="5" class="switch-red" />
+<text x="841.0" y="816.0" class="tiny" text-anchor="middle" >FUSE 3</text>
+</g>
+<g id="function_buttons" class="component" data-path="buttons.function">
+<rect x="690.0" y="845.0" width="42.0" height="24.0" rx="4" ry="4" class="button" />
+<text x="711.0" y="858.0" class="tiny" text-anchor="middle" >B1</text>
+<rect x="750.0" y="845.0" width="42.0" height="24.0" rx="4" ry="4" class="button" />
+<text x="771.0" y="858.0" class="tiny" text-anchor="middle" >B2</text>
+<rect x="810.0" y="845.0" width="42.0" height="24.0" rx="4" ry="4" class="button" />
+<text x="831.0" y="858.0" class="tiny" text-anchor="middle" >B3</text>
+</g>
+<g id="channel_1_launch" class="component" data-path="controls.launch_1">
+<rect x="920.0" y="750.0" width="62.0" height="118.0" rx="6" ry="6" class="launch-box" />
+<rect x="928.0" y="758.0" width="46.0" height="36.0" rx="4" ry="4" class="number-plate" />
+<text x="951.0" y="777.0" class="big-number" text-anchor="middle" >1</text>
+<circle cx="951.0" cy="812.0" r="12.0" class="switch-red" />
+<text x="951.0" y="834.0" class="tiny" text-anchor="middle" >LAUNCH</text>
+<rect x="931.0" y="844.0" width="40.0" height="16.0" rx="2" ry="2" class="screen-fill" />
+</g>
+<g id="channel_2_launch" class="component" data-path="controls.launch_2">
+<rect x="990.0" y="750.0" width="62.0" height="118.0" rx="6" ry="6" class="launch-box" />
+<rect x="998.0" y="758.0" width="46.0" height="36.0" rx="4" ry="4" class="number-plate" />
+<text x="1021.0" y="777.0" class="big-number" text-anchor="middle" >2</text>
+<circle cx="1021.0" cy="812.0" r="12.0" class="switch-red" />
+<text x="1021.0" y="834.0" class="tiny" text-anchor="middle" >LAUNCH</text>
+<rect x="1001.0" y="844.0" width="40.0" height="16.0" rx="2" ry="2" class="screen-fill" />
+</g>
+<g id="left_base_hazard_strip" class="component" data-path="warnings.left_base_hazard_strip">
+<rect x="190.0" y="940.0" width="48.0" height="265.0" rx="3" ry="3" class="hazard" />
+</g>
+<g id="left_base_warning_top" class="component" >
+<polygon points="214.0,894.5 196.0,925.5 232.0,925.5" class="warn-tri" />
+<text x="214.0" y="914.3" class="warn-text" text-anchor="middle" >⚡</text>
+</g>
+<g id="left_base_warning_bottom" class="component" >
+<polygon points="214.0,1222.5 196.0,1253.5 232.0,1253.5" class="warn-tri" />
+<text x="214.0" y="1242.3" class="warn-text" text-anchor="middle" >⚡</text>
+</g>
+<g id="charger_panel" class="component" data-path="power.charger">
+<rect x="270.0" y="950.0" width="230.0" height="130.0" rx="10" ry="10" class="module" />
+<text x="385.0" y="972.0" class="label" text-anchor="middle" >CHARGER</text>
+<rect x="310.0" y="995.0" width="145.0" height="38.0" rx="4" ry="4" class="screen-fill" />
+<rect x="320.0" y="1046.0" width="120.0" height="18.0" rx="3" ry="3" class="spec-label" />
+<circle cx="315.0" cy="1077.0" r="5.0" class="led-green" />
+<text x="315.0" y="1095.0" class="spec" text-anchor="middle" >MODE</text>
+<circle cx="355.0" cy="1077.0" r="5.0" class="led-green" />
+<text x="355.0" y="1095.0" class="spec" text-anchor="middle" >UP</text>
+<circle cx="395.0" cy="1077.0" r="5.0" class="led-green" />
+<text x="395.0" y="1095.0" class="spec" text-anchor="middle" >DOWN</text>
+<circle cx="445.0" cy="1077.0" r="5.0" class="led-green" />
+<text x="445.0" y="1095.0" class="spec" text-anchor="middle" >ENTER</text>
+</g>
+<g id="source_selector" class="component" data-path="power.source_selector">
+<rect x="540.0" y="950.0" width="95.0" height="140.0" rx="10" ry="10" class="module" />
+<text x="587.0" y="1023.0" class="label" text-anchor="middle" >SOURCE</text>
+<circle cx="587.0" cy="980.0" r="20.0" class="knob" />
+<line x1="587.0" y1="960.0" x2="587.0" y2="980.0" class="thin" />
+<circle cx="587.0" cy="1062.0" r="20.0" class="power-button" />
+<text x="626.0" y="970.0" class="tiny" text-anchor="middle" >P</text>
+<text x="626.0" y="992.0" class="tiny" text-anchor="middle" >O</text>
+<text x="626.0" y="1014.0" class="tiny" text-anchor="middle" >W</text>
+<text x="626.0" y="1036.0" class="tiny" text-anchor="middle" >E</text>
+<text x="626.0" y="1058.0" class="tiny" text-anchor="middle" >R</text>
+</g>
+<g id="fan_base" class="component" data-path="thermal.fan_base">
+<rect x="670.0" y="965.0" width="80.0" height="80.0" rx="8" ry="8" class="hazard" />
+<circle cx="710.0" cy="1005.0" r="27.2" class="fan-ring" />
+<line x1="715.8" y1="1007.7" x2="733.2" y2="1015.8" class="fan-blade" />
+<line x1="707.3" y1="1010.8" x2="699.2" y2="1028.2" class="fan-blade" />
+<line x1="704.2" y1="1002.3" x2="686.8" y2="994.2" class="fan-blade" />
+<line x1="712.7" y1="999.2" x2="720.8" y2="981.8" class="fan-blade" />
+<circle cx="710.0" cy="1005.0" r="8.8" class="fan-hub" />
+</g>
+<g id="base_spec_label" class="component" >
+<rect x="760.0" y="980.0" width="120.0" height="65.0" rx="5" ry="5" class="spec-label" />
+<text x="820.0" y="1000.0" class="spec" text-anchor="middle" >INPUT 12-24V</text>
+<text x="820.0" y="1018.0" class="spec" text-anchor="middle" >MODEL RC-1000</text>
+<text x="820.0" y="1036.0" class="spec" text-anchor="middle" >CE  MADE IN EU</text>
+</g>
+<g id="right_storage_tray" class="component" data-path="storage.right_tray">
+<rect x="805.0" y="930.0" width="255.0" height="145.0" rx="14" ry="14" class="tray-large" />
+<rect x="825.0" y="950.0" width="215.0" height="90.0" rx="10" ry="10" class="tray-inner" />
+</g>
+<g id="keyboard" class="component" data-path="input.keyboard">
+<rect x="275.0" y="1145.0" width="585.0" height="195.0" rx="4" ry="4" class="keyboard-body" />
+<rect x="282.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="300.5" y="1169.5" class="keytxt" text-anchor="middle" >Esc</text>
+<rect x="324.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="342.5" y="1169.5" class="keytxt" text-anchor="middle" >1</text>
+<rect x="366.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="384.5" y="1169.5" class="keytxt" text-anchor="middle" >2</text>
+<rect x="408.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="426.5" y="1169.5" class="keytxt" text-anchor="middle" >3</text>
+<rect x="450.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="468.5" y="1169.5" class="keytxt" text-anchor="middle" >4</text>
+<rect x="492.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="510.5" y="1169.5" class="keytxt" text-anchor="middle" >5</text>
+<rect x="534.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="552.5" y="1169.5" class="keytxt" text-anchor="middle" >6</text>
+<rect x="576.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="594.5" y="1169.5" class="keytxt" text-anchor="middle" >7</text>
+<rect x="618.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="636.5" y="1169.5" class="keytxt" text-anchor="middle" >8</text>
+<rect x="660.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="678.5" y="1169.5" class="keytxt" text-anchor="middle" >9</text>
+<rect x="702.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="720.5" y="1169.5" class="keytxt" text-anchor="middle" >0</text>
+<rect x="744.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="762.5" y="1169.5" class="keytxt" text-anchor="middle" >-</text>
+<rect x="786.0" y="1151.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="804.5" y="1169.5" class="keytxt" text-anchor="middle" >+</text>
+<rect x="282.0" y="1190.0" width="55.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="309.5" y="1208.5" class="keytxt" text-anchor="middle" >Tab</text>
+<rect x="342.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="360.5" y="1208.5" class="keytxt" text-anchor="middle" >Q</text>
+<rect x="384.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="402.5" y="1208.5" class="keytxt" text-anchor="middle" >W</text>
+<rect x="426.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="444.5" y="1208.5" class="keytxt" text-anchor="middle" >E</text>
+<rect x="468.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="486.5" y="1208.5" class="keytxt" text-anchor="middle" >R</text>
+<rect x="510.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="528.5" y="1208.5" class="keytxt" text-anchor="middle" >T</text>
+<rect x="552.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="570.5" y="1208.5" class="keytxt" text-anchor="middle" >Y</text>
+<rect x="594.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="612.5" y="1208.5" class="keytxt" text-anchor="middle" >U</text>
+<rect x="636.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="654.5" y="1208.5" class="keytxt" text-anchor="middle" >I</text>
+<rect x="678.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="696.5" y="1208.5" class="keytxt" text-anchor="middle" >O</text>
+<rect x="720.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="738.5" y="1208.5" class="keytxt" text-anchor="middle" >P</text>
+<rect x="762.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="780.5" y="1208.5" class="keytxt" text-anchor="middle" >[</text>
+<rect x="804.0" y="1190.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="822.5" y="1208.5" class="keytxt" text-anchor="middle" >]</text>
+<rect x="282.0" y="1229.0" width="55.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="309.5" y="1247.5" class="keytxt" text-anchor="middle" >Caps</text>
+<rect x="342.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="360.5" y="1247.5" class="keytxt" text-anchor="middle" >A</text>
+<rect x="384.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="402.5" y="1247.5" class="keytxt" text-anchor="middle" >S</text>
+<rect x="426.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="444.5" y="1247.5" class="keytxt" text-anchor="middle" >D</text>
+<rect x="468.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="486.5" y="1247.5" class="keytxt" text-anchor="middle" >F</text>
+<rect x="510.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="528.5" y="1247.5" class="keytxt" text-anchor="middle" >G</text>
+<rect x="552.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="570.5" y="1247.5" class="keytxt" text-anchor="middle" >H</text>
+<rect x="594.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="612.5" y="1247.5" class="keytxt" text-anchor="middle" >J</text>
+<rect x="636.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="654.5" y="1247.5" class="keytxt" text-anchor="middle" >K</text>
+<rect x="678.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="696.5" y="1247.5" class="keytxt" text-anchor="middle" >L</text>
+<rect x="720.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="738.5" y="1247.5" class="keytxt" text-anchor="middle" >;</text>
+<rect x="762.0" y="1229.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="780.5" y="1247.5" class="keytxt" text-anchor="middle" >'</text>
+<rect x="282.0" y="1268.0" width="55.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="309.5" y="1286.5" class="keytxt" text-anchor="middle" >Shift</text>
+<rect x="342.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="360.5" y="1286.5" class="keytxt" text-anchor="middle" >Z</text>
+<rect x="384.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="402.5" y="1286.5" class="keytxt" text-anchor="middle" >X</text>
+<rect x="426.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="444.5" y="1286.5" class="keytxt" text-anchor="middle" >C</text>
+<rect x="468.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="486.5" y="1286.5" class="keytxt" text-anchor="middle" >V</text>
+<rect x="510.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="528.5" y="1286.5" class="keytxt" text-anchor="middle" >B</text>
+<rect x="552.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="570.5" y="1286.5" class="keytxt" text-anchor="middle" >N</text>
+<rect x="594.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="612.5" y="1286.5" class="keytxt" text-anchor="middle" >M</text>
+<rect x="636.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="654.5" y="1286.5" class="keytxt" text-anchor="middle" >,</text>
+<rect x="678.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="696.5" y="1286.5" class="keytxt" text-anchor="middle" >.</text>
+<rect x="720.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="738.5" y="1286.5" class="keytxt" text-anchor="middle" >/</text>
+<rect x="762.0" y="1268.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="780.5" y="1286.5" class="keytxt" text-anchor="middle" >↑</text>
+<rect x="282.0" y="1307.0" width="55.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="309.5" y="1325.5" class="keytxt" text-anchor="middle" >Ctrl</text>
+<rect x="342.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="360.5" y="1325.5" class="keytxt" text-anchor="middle" >Fn</text>
+<rect x="384.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="402.5" y="1325.5" class="keytxt" text-anchor="middle" >Win</text>
+<rect x="426.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="444.5" y="1325.5" class="keytxt" text-anchor="middle" >Alt</text>
+<rect x="468.0" y="1307.0" width="155.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="545.5" y="1325.5" class="keytxt" text-anchor="middle" >Space</text>
+<rect x="628.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="646.5" y="1325.5" class="keytxt" text-anchor="middle" >Alt</text>
+<rect x="670.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="688.5" y="1325.5" class="keytxt" text-anchor="middle" >PgUp</text>
+<rect x="712.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="730.5" y="1325.5" class="keytxt" text-anchor="middle" >PgDn</text>
+<rect x="754.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="772.5" y="1325.5" class="keytxt" text-anchor="middle" >←</text>
+<rect x="796.0" y="1307.0" width="37.0" height="35.0" rx="4" ry="4" class="key" />
+<text x="814.5" y="1325.5" class="keytxt" text-anchor="middle" >↓</text>
+</g>
+<g id="trackball" class="component" data-path="input.trackball">
+<rect x="880.0" y="1145.0" width="145.0" height="195.0" rx="10" ry="10" class="module" />
+<circle cx="952.0" cy="1218.0" r="48.0" class="track-ring" />
+<circle cx="952.0" cy="1218.0" r="25.0" class="track-ball" />
+<rect x="900.0" y="1300.0" width="34.0" height="25.0" rx="5" ry="5" class="button" />
+<rect x="947.0" y="1300.0" width="34.0" height="25.0" rx="5" ry="5" class="button" />
+<rect x="994.0" y="1300.0" width="34.0" height="25.0" rx="5" ry="5" class="button" />
+</g>
+<g id="round_button_right" class="component" data-path="buttons.round_right">
+<circle cx="1085.0" cy="1160.0" r="27.0" class="module" />
+</g>
+<g id="right_lower_warning" class="component" >
+<polygon points="1082.0,1246.7 1041.0,1317.3 1123.0,1317.3" class="warn-tri" />
+<text x="1082.0" y="1291.8" class="warn-text" text-anchor="middle" >⚠</text>
+</g>
+<g id="front_latches_and_handle" class="component" >
+<rect x="230.0" y="1365.0" width="70.0" height="90.0" rx="10" ry="10" class="metal" />
+<rect x="245.0" y="1385.0" width="40.0" height="42.0" rx="5" ry="5" class="metal-dark" />
+<line x1="242.0" y1="1407.0" x2="288.0" y2="1407.0" class="thin" />
+<rect x="895.0" y="1365.0" width="70.0" height="90.0" rx="10" ry="10" class="metal" />
+<rect x="910.0" y="1385.0" width="40.0" height="42.0" rx="5" ry="5" class="metal-dark" />
+<line x1="907.0" y1="1407.0" x2="953.0" y2="1407.0" class="thin" />
+<rect x="475.0" y="1375.0" width="250.0" height="78.0" rx="28" ry="28" class="handle-outer" />
+<rect x="520.0" y="1400.0" width="160.0" height="32.0" rx="18" ry="18" class="handle-inner" />
+</g>
+</svg>
