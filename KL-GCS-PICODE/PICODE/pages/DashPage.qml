@@ -373,19 +373,9 @@ Rectangle {
                     }
                 }
 
-                Rectangle {
+                CaseView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.margins: Theme.spaceXs
-                    radius: 3
-                    color: Theme.bgSecondary
-                    border.color: Theme.border
-                    border.width: 1
-
-                    CaseView {
-                        anchors.fill: parent
-                        anchors.margins: 3
-                    }
                 }
             }
         }
