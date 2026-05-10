@@ -78,8 +78,10 @@ add_executable(GCS
     src/digital_io.c
     src/led_sk6812.c
     src/led_ws2811.c
+    src/font_data.c
     src/screen_st7735.c
     src/screen_display.c
+    src/logo_kl.c
     src/veml7700.c
     src/rs485.c
 )
@@ -127,6 +129,7 @@ pico_add_extra_outputs(GCS)
 add_executable(GCS_TFT_Test
     src/test_tft.c
     src/screen_st7735.c
+    src/logo_kl.c
 )
 
 pico_set_program_name(GCS_TFT_Test "GCS_TFT_Test")
@@ -151,3 +154,57 @@ target_link_libraries(GCS_TFT_Test
 )
 
 pico_add_extra_outputs(GCS_TFT_Test)
+
+# ------------------------------------------------------------------ #
+# GPIO pad continuity test for the TFT-SPI pins (no display needed)  #
+# ------------------------------------------------------------------ #
+add_executable(GCS_GPIO_Pad_Test
+    src/test_gpio_pads.c
+)
+
+pico_set_program_name(GCS_GPIO_Pad_Test "GCS_GPIO_Pad_Test")
+pico_set_program_version(GCS_GPIO_Pad_Test "1.0")
+
+pico_enable_stdio_uart(GCS_GPIO_Pad_Test 1)
+pico_enable_stdio_usb(GCS_GPIO_Pad_Test 0)
+
+target_include_directories(GCS_GPIO_Pad_Test PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/src
+)
+
+target_link_libraries(GCS_GPIO_Pad_Test
+    pico_stdlib
+    hardware_gpio
+    hardware_i2c
+    hardware_spi
+)
+
+pico_add_extra_outputs(GCS_GPIO_Pad_Test)
+
+# ------------------------------------------------------------------ #
+# spi1 peripheral test (no display needed, scope SCK/MOSI/CS)        #
+# ------------------------------------------------------------------ #
+add_executable(GCS_SPI1_Test
+    src/test_spi1.c
+)
+
+pico_set_program_name(GCS_SPI1_Test "GCS_SPI1_Test")
+pico_set_program_version(GCS_SPI1_Test "1.0")
+
+pico_enable_stdio_uart(GCS_SPI1_Test 1)
+pico_enable_stdio_usb(GCS_SPI1_Test 0)
+
+target_include_directories(GCS_SPI1_Test PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/src
+)
+
+target_link_libraries(GCS_SPI1_Test
+    pico_stdlib
+    hardware_gpio
+    hardware_spi
+    hardware_i2c
+)
+
+pico_add_extra_outputs(GCS_SPI1_Test)

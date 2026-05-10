@@ -168,18 +168,20 @@ Shares the same I2C0 bus as the MCP23017. No address configuration — I2C addre
 
 **Voltage divider for CH0 (battery) and CH1 (external):**
 ```
-Vin (up to 25.2 V)
+Vin (up to ~30 V)
     │
-   R1 = 33 kΩ (0402, 1%)
+   R1 = 180 kΩ (0402, 1%)
     │
     ├──── CH0 or CH1 (MCP3208 input)
-    │     └── 100 nF to GND  (noise filter)
-   R2 = 4.7 kΩ (0402, 1%)
+    │
+   R2 = 22 kΩ (0402, 1%)
     │
    GND
 ```
-Ratio = (33 + 4.7) / 4.7 ≈ **8.02:1**. Max input = 3.3 V × 8.02 = **26.5 V** (covers 6S LiPo max 25.2 V).
-Firmware conversion: `Vbat = (raw / 4095.0) × 3.3 × 8.021`
+Ratio = (180 + 22) / 22 ≈ **9.18:1**. Max input = 3.3 V × 9.18 = **30.3 V** (covers 6S LiPo max 25.2 V with headroom).
+Firmware conversion: `Vbat = (raw / 4095.0) × 3.3 × 9.1818`
+
+> ⚠ No filter cap on the tap node in the current build — high source impedance (≈19.7 kΩ Thevenin) means the MCP3208 sample cap charging may not settle within the acquisition window. If readings are noisy, add 100 nF tap→GND.
 
 **Spare channels CH2–CH5:** connect directly to 0–3.3 V analog signals. Add 100 nF to GND at each input pin.
 

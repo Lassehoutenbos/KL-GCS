@@ -143,8 +143,8 @@ IODIRB = `0xFF` (all inputs)
 
 | Channel | Constant | Sensor | Location | Conversion |
 |---------|----------|--------|----------|------------|
-| 0 | `ADC_CH_BAT_VIN` | Voltage divider (8.02:1) | Battery input | `raw / 4095 × 3.3 × 8.021` = volts |
-| 1 | `ADC_CH_EXT_VIN` | Voltage divider (8.02:1) | External power input | Same as battery |
+| 0 | `ADC_CH_BAT_VIN` | Voltage divider (9.18:1, 180k/22k) | Battery input | `raw / 4095 × 3.3 × 9.1818` = volts |
+| 1 | `ADC_CH_EXT_VIN` | Voltage divider (9.18:1, 180k/22k) | External power input | Same as battery |
 | 2 | `ADC_CH_SENS2` | 10k NTC thermistor (B=3950) | Power circuit on PCB | NTC formula, celsius |
 | 3 | `ADC_CH_SENS3` | 10k NTC thermistor (B=3950) | Raspberry Pi | NTC formula, celsius |
 | 4 | `ADC_CH_SENS4` | 10k NTC thermistor (B=3950) | Charger module | NTC formula, celsius |

@@ -6,6 +6,7 @@ import PICODE
 Item {
     id: panel
     property string quickLayoutMode: "PILOT"
+    signal brandLogoRequested()
 
     function toggle() {
         if (visible) {
@@ -131,6 +132,43 @@ Item {
                     font.weight: Font.Medium
                     font.letterSpacing: 1.2
                     font.family: Theme.fontMono
+                }
+
+                // Show brand-logo splash
+                Rectangle {
+                    id: showLogoBtn
+                    Layout.preferredWidth: 88
+                    Layout.preferredHeight: 36
+                    radius: Theme.radiusButton
+                    color: pressArea.pressed ? Theme.accentYellowSoft : Theme.bgSecondary
+                    border.color: pressArea.pressed ? Theme.accentYellow : Theme.border
+                    border.width: 1
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        BrandLogo {
+                            variant: "mark"
+                            Layout.preferredWidth: 16
+                            Layout.preferredHeight: 16
+                        }
+                        Text {
+                            text: "LOGO"
+                            color: pressArea.pressed ? Theme.accentYellow : Theme.textSecondary
+                            font.pixelSize: Theme.fontMicro
+                            font.family: Theme.fontMono
+                            font.weight: Font.SemiBold
+                            font.letterSpacing: 1.6
+                        }
+                    }
+
+                    MouseArea {
+                        id: pressArea
+                        anchors.fill: parent
+                        onClicked: panel.brandLogoRequested()
+                    }
                 }
 
                 BigButton {

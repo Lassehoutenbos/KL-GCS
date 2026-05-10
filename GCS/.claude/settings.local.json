@@ -10,7 +10,9 @@
       "Bash(cmake -G Ninja -B build -S .)",
       "Bash(cmake --build build)",
       "Bash(awk NR>=120 && NR<=230 *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "WebFetch(domain:www.benselectronics.nl)",
+      "Bash(grep -E \"error:|warning:|FAILED|elf$|\\\\.uf2$\")"
     ]
   }
 }

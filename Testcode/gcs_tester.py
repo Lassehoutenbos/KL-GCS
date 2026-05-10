@@ -15,6 +15,9 @@ import struct
 import time
 import queue
 import re
+import math
+import random
+import colorsys
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +92,21 @@ class GCSProtocol:
     # Firmware max payload = 514 bytes.
     # SK6812 chain: payload = [chain(1), num_px(1), GRBW*n] → max n = (514-2)/4 = 128
     SK6812_MAX_PIXELS_PER_SEND = 128
+
+    # SK6812 status-strip layout (front panel, vertical, between Payload-1 and
+    # Payload-2). Each entry: (label, start_idx, end_idx_inclusive). Pixels
+    # outside any range are gap separators and stay off.
+    # See docs/SK6812_STRIP_LAYOUT.md for the panel mapping.
+    SK6812_GROUPS = [
+        ("SW2-1",  0,  3),
+        ("SW2-2",  5,  8),
+        ("SW2-3", 11, 13),
+        ("SW1-1", 14, 17),
+        ("SW1-2", 19, 22),
+        ("SW1-3", 24, 27),
+        ("SW3",   28, 37),
+    ]
+    SK6812_STRIP_LEN = 38
 
     @staticmethod
     def _checksum(msg_type: int, length: int, payload: bytes) -> int:
@@ -825,6 +843,44 @@ class GCSTesterApp(ctk.CTk):
                       fg_color="#7a1a1a", hover_color="#a02020",
                       command=self._send_sk6812_clear).pack(side="left")
 
+        # --- SK6812 Animations (host-driven) --------------------------------
+        anim_box = ctk.CTkFrame(sk_box, corner_radius=4, fg_color="#222222")
+        anim_box.pack(fill="x", padx=6, pady=(2, 8))
+        ctk.CTkLabel(anim_box, text="Animations (host-driven, uses Start/End range)",
+                     font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=8, pady=(6, 2))
+
+        anim_row1 = ctk.CTkFrame(anim_box, fg_color="transparent")
+        anim_row1.pack(fill="x", padx=8, pady=2)
+        ctk.CTkLabel(anim_row1, text="Mode:", width=50, anchor="w").pack(side="left")
+        self._sk_anim_modes = ["Rainbow", "Chase", "Theater", "Comet",
+                               "Pulse", "Wipe", "Sparkle", "Twinkle-W", "Fire",
+                               "Groups", "Group-Sweep"]
+        self._sk_anim_combo = ComboBox(anim_row1, values=self._sk_anim_modes, width=130)
+        self._sk_anim_combo.set("Rainbow")
+        self._sk_anim_combo.pack(side="left", padx=(0, 12))
+        ctk.CTkLabel(anim_row1, text="FPS:", width=36, anchor="w").pack(side="left")
+        self._sk_anim_fps = ctk.CTkEntry(anim_row1, width=46)
+        self._sk_anim_fps.insert(0, "20")
+        self._sk_anim_fps.pack(side="left")
+
+        anim_row2 = ctk.CTkFrame(anim_box, fg_color="transparent")
+        anim_row2.pack(fill="x", padx=8, pady=(2, 8))
+        ctk.CTkButton(anim_row2, text="Start Anim", width=110,
+                      fg_color="#1a5a1a", hover_color="#2a8a2a",
+                      command=self._sk_anim_start).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(anim_row2, text="Stop Anim", width=110,
+                      fg_color="#7a1a1a", hover_color="#a02020",
+                      command=self._sk_anim_stop).pack(side="left")
+        self._sk_anim_status = ctk.CTkLabel(anim_row2, text="idle",
+                                            font=ctk.CTkFont(size=10),
+                                            text_color="#888888")
+        self._sk_anim_status.pack(side="left", padx=(12, 0))
+
+        self._sk_anim_after_id = None
+        self._sk_anim_running  = False
+        self._sk_anim_frame    = 0
+        self._sk_anim_state    = None  # mode-specific state dict
+
         # --- Worklight (0x10) -----------------------------------------------
         self._section_label(p, "WORKLIGHT  (0x10 · LEDs 48–70)")
         wl_box = ctk.CTkFrame(p, corner_radius=6)
@@ -1045,6 +1101,213 @@ class GCSTesterApp(ctk.CTk):
             pkt = GCSProtocol.build_packet(GCSProtocol.TYPE_LED, payload)
             self._driver.send(pkt)
         self._log_tx(GCSProtocol.TYPE_LED, b"", "SK6812 clear all (black)")
+
+    # --- SK6812 host-side animations -------------------------------------
+    def _sk_anim_range(self):
+        try:
+            start = max(0, min(127, int(self._sk_start.get())))
+            end   = max(start, min(127, int(self._sk_end.get())))
+        except ValueError:
+            return None
+        return start, end
+
+    def _sk_send_pixels_raw(self, pixels_grbw):
+        """Send a single SK6812 frame. pixels_grbw: list of (G,R,B,W) for indices 0..N-1.
+        N must be <= SK6812_MAX_PIXELS_PER_SEND (128). Skips logging to avoid spam."""
+        n = len(pixels_grbw)
+        if n == 0 or n > GCSProtocol.SK6812_MAX_PIXELS_PER_SEND:
+            return
+        buf = bytearray(n * 4)
+        for i, (g, r, b, w) in enumerate(pixels_grbw):
+            base = i * 4
+            buf[base]     = g & 0xFF
+            buf[base + 1] = r & 0xFF
+            buf[base + 2] = b & 0xFF
+            buf[base + 3] = w & 0xFF
+        payload = bytes([GCSProtocol.CHAIN_SK6812, n]) + bytes(buf)
+        pkt = GCSProtocol.build_packet(GCSProtocol.TYPE_LED, payload)
+        self._driver.send(pkt)
+
+    def _sk_anim_start(self):
+        if self._sk_anim_running:
+            return
+        rng = self._sk_anim_range()
+        if rng is None:
+            self._log_info("SK6812 anim: invalid start/end")
+            return
+        if not self._driver.is_connected():
+            self._log_info("SK6812 anim: not connected")
+            return
+        self._sk_anim_running = True
+        self._sk_anim_frame   = 0
+        self._sk_anim_state   = {}
+        mode = self._sk_anim_combo.get()
+        self._sk_anim_status.configure(text=f"running: {mode}", text_color="#33dd33")
+        self._log_info(f"SK6812 anim start: {mode} range={rng[0]}-{rng[1]}")
+        self._sk_anim_step()
+
+    def _sk_anim_stop(self):
+        was = self._sk_anim_running
+        self._sk_anim_running = False
+        if self._sk_anim_after_id is not None:
+            try:
+                self.after_cancel(self._sk_anim_after_id)
+            except Exception:
+                pass
+            self._sk_anim_after_id = None
+        self._sk_anim_status.configure(text="idle", text_color="#888888")
+        if was:
+            # Send one black frame across the active range to leave the strip clean.
+            rng = self._sk_anim_range()
+            if rng is not None and self._driver.is_connected():
+                end = rng[1]
+                self._sk_send_pixels_raw([(0, 0, 0, 0)] * (end + 1))
+            self._log_info("SK6812 anim stop")
+
+    def _sk_anim_step(self):
+        if not self._sk_anim_running:
+            return
+        if not self._driver.is_connected():
+            self._sk_anim_stop()
+            return
+        mode  = self._sk_anim_combo.get()
+        f     = self._sk_anim_frame
+
+        # Group-aware modes always span the full status strip and ignore the
+        # Start/End sliders — the layout is fixed by hardware.
+        if mode in ("Groups", "Group-Sweep"):
+            start = 0
+            end   = GCSProtocol.SK6812_STRIP_LEN - 1
+        else:
+            rng = self._sk_anim_range()
+            if rng is None:
+                self._sk_anim_stop()
+                return
+            start, end = rng
+        n_active = end - start + 1
+        # Build full pixel buffer 0..end (pixels before 'start' = off).
+        pixels = [(0, 0, 0, 0)] * (end + 1)
+
+        # Use the colour sliders as base colour for modes that need it.
+        bg = int(self._sk_g.get())
+        br = int(self._sk_r.get())
+        bb = int(self._sk_b.get())
+        bw = int(self._sk_w.get())
+        # If sliders are all zero for colour-based modes, fall back to white.
+        if (br | bg | bb | bw) == 0 and mode in ("Chase", "Theater", "Comet",
+                                                  "Pulse", "Wipe", "Sparkle"):
+            br, bg, bb, bw = 255, 255, 255, 0
+
+        if mode == "Rainbow":
+            for i in range(n_active):
+                hue = ((i / max(1, n_active)) + (f / 80.0)) % 1.0
+                r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+                pixels[start + i] = (int(g * 255), int(r * 255), int(b * 255), 0)
+
+        elif mode == "Chase":
+            head = f % n_active
+            for i in range(n_active):
+                if i == head:
+                    pixels[start + i] = (bg, br, bb, bw)
+
+        elif mode == "Theater":
+            for i in range(n_active):
+                if (i + f) % 3 == 0:
+                    pixels[start + i] = (bg, br, bb, bw)
+
+        elif mode == "Comet":
+            tail = 8
+            head = f % n_active
+            for k in range(tail):
+                idx = (head - k) % n_active
+                fade = (tail - k) / tail
+                pixels[start + idx] = (int(bg * fade), int(br * fade),
+                                       int(bb * fade), int(bw * fade))
+
+        elif mode == "Pulse":
+            # Sinusoidal breathing across the whole active range.
+            level = 0.5 - 0.5 * math.cos(f * 2 * math.pi / 40.0)
+            for i in range(n_active):
+                pixels[start + i] = (int(bg * level), int(br * level),
+                                     int(bb * level), int(bw * level))
+
+        elif mode == "Wipe":
+            cycle = 2 * n_active
+            phase = f % cycle
+            if phase < n_active:
+                # Fill in.
+                lit = phase + 1
+                for i in range(lit):
+                    pixels[start + i] = (bg, br, bb, bw)
+            else:
+                # Fade out trailing.
+                lit = cycle - phase
+                for i in range(lit):
+                    pixels[start + i] = (bg, br, bb, bw)
+
+        elif mode == "Sparkle":
+            # Each frame light up ~20% random pixels at base colour.
+            count = max(1, n_active // 5)
+            for _ in range(count):
+                i = random.randrange(n_active)
+                pixels[start + i] = (bg, br, bb, bw)
+
+        elif mode == "Twinkle-W":
+            # White-channel only twinkle on warm dim background.
+            base_w = 16
+            for i in range(n_active):
+                pixels[start + i] = (0, 0, 0, base_w)
+            count = max(1, n_active // 6)
+            for _ in range(count):
+                i = random.randrange(n_active)
+                pixels[start + i] = (0, 0, 0, 255)
+
+        elif mode == "Fire":
+            # Random orange/red flicker per pixel; uses W as ember tint.
+            for i in range(n_active):
+                heat = random.randint(120, 255)
+                r = heat
+                g = max(0, heat // 4 - random.randint(0, 30))
+                pixels[start + i] = (g, r, 0, 0)
+
+        elif mode == "Groups":
+            # Each switch group lit a distinct hue, gaps stay off. Slow
+            # breathing on intensity so the panel reads as "alive".
+            level = 0.4 + 0.6 * (0.5 - 0.5 * math.cos(f * 2 * math.pi / 60.0))
+            n_groups = len(GCSProtocol.SK6812_GROUPS)
+            for gi, (_, gs, ge) in enumerate(GCSProtocol.SK6812_GROUPS):
+                hue = gi / max(1, n_groups)
+                r, g, b = colorsys.hsv_to_rgb(hue, 1.0, level)
+                R, G, B = int(r * 255), int(g * 255), int(b * 255)
+                for i in range(gs, ge + 1):
+                    pixels[i] = (G, R, B, 0)
+
+        elif mode == "Group-Sweep":
+            # One group lit at a time, advancing top→bottom. Uses the colour
+            # sliders as the lit colour (white fallback if all zero).
+            n_groups = len(GCSProtocol.SK6812_GROUPS)
+            active = f % n_groups
+            cg, cr, cb, cw = bg, br, bb, bw
+            if (cr | cg | cb | cw) == 0:
+                cr, cg, cb, cw = 255, 255, 255, 0
+            gs, ge = GCSProtocol.SK6812_GROUPS[active][1:3]
+            for i in range(gs, ge + 1):
+                pixels[i] = (cg, cr, cb, cw)
+
+        else:
+            # Unknown mode → stop cleanly.
+            self._sk_anim_stop()
+            return
+
+        self._sk_send_pixels_raw(pixels)
+        self._sk_anim_frame = (f + 1) & 0xFFFFFFFF
+
+        try:
+            fps = max(1, min(60, int(self._sk_anim_fps.get())))
+        except ValueError:
+            fps = 20
+        interval = max(16, int(1000 / fps))
+        self._sk_anim_after_id = self.after(interval, self._sk_anim_step)
 
     def _send_brightness(self):
         val = self._bright_target.get()
@@ -1309,6 +1572,7 @@ class GCSTesterApp(ctk.CTk):
 
     def _on_disconnect(self):
         self._stop_hb_auto()
+        self._sk_anim_stop()
         self._driver.disconnect()
         self._status_label.configure(text="● OFFLINE", text_color="#FF4444")
         self._connect_btn.configure(state="normal")
@@ -1318,6 +1582,7 @@ class GCSTesterApp(ctk.CTk):
     def _handle_unexpected_disconnect(self):
         if not self._driver.is_connected():
             self._stop_hb_auto()
+            self._sk_anim_stop()
             self._status_label.configure(text="● LOST", text_color="#FF4444")
             self._connect_btn.configure(state="normal")
             self._disconnect_btn.configure(state="disabled")
@@ -1398,7 +1663,17 @@ class GCSTesterApp(ctk.CTk):
         tag_str = f"  {note}" if note else ""
         self._log_queue.put(("TX", f"TX  [{msg_type:#04x}]  {hex_str}{tag_str}"))
 
+    # Periodic high-rate packets — skip logging to keep the Tk main loop responsive.
+    _RX_LOG_SKIP = frozenset((
+        GCSProtocol.TYPE_ADC,
+        GCSProtocol.TYPE_DIGITAL,
+        GCSProtocol.TYPE_HEARTBEAT,
+        GCSProtocol.TYPE_ALS,
+    ))
+
     def _log_rx(self, msg_type: int, payload: bytes):
+        if msg_type in self._RX_LOG_SKIP:
+            return
         hex_str = payload.hex(" ").upper() if payload else "(empty)"
         self._log_queue.put(("RX", f"RX  [{msg_type:#04x}]  {hex_str}"))
 
@@ -1410,19 +1685,27 @@ class GCSTesterApp(ctk.CTk):
         self._log_box.delete("1.0", "end")
         self._log_box.configure(state="disabled")
 
+    _LOG_MAX_LINES        = 500
+    _LOG_DRAIN_PER_TICK   = 50
+
     def _process_log_queue(self):
+        tb = self._log_box._textbox
+        drained = 0
         try:
-            while True:
+            self._log_box.configure(state="normal")
+            while drained < self._LOG_DRAIN_PER_TICK:
                 tag, msg = self._log_queue.get_nowait()
                 ts   = time.strftime("%H:%M:%S")
-                line = f"[{ts}]  {msg}\n"
-                tb   = self._log_box._textbox
-                self._log_box.configure(state="normal")
-                tb.insert("end", line, tag)
-                self._log_box.configure(state="disabled")
-                tb.see("end")
+                tb.insert("end", f"[{ts}]  {msg}\n", tag)
+                drained += 1
         except queue.Empty:
             pass
+        if drained:
+            line_count = int(tb.index("end-1c").split(".")[0])
+            if line_count > self._LOG_MAX_LINES:
+                tb.delete("1.0", f"{line_count - self._LOG_MAX_LINES}.0")
+            tb.see("end")
+        self._log_box.configure(state="disabled")
         self.after(50, self._process_log_queue)
 
     # -----------------------------------------------------------------------

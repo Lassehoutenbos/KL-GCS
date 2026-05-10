@@ -71,8 +71,8 @@ private:
 
     static constexpr double ADC_VREF      = 3.3;
     static constexpr double ADC_MAX       = 4095.0;
-    static constexpr double BAT_DIVIDER   = 8.021;
-    static constexpr double EXT_DIVIDER   = 8.021;
+    static constexpr double BAT_DIVIDER   = 9.1818;  // (180k + 22k) / 22k
+    static constexpr double EXT_DIVIDER   = 9.1818;
     static constexpr double NTC_R0        = 10000.0;
     static constexpr double NTC_BETA      = 3950.0;
     static constexpr double NTC_T0        = 298.15;

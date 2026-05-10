@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "font_data.h"
+
 /* ------------------------------------------------------------------ */
 /* Color helpers (RGB888 → RGB565)                                       */
 /* ------------------------------------------------------------------ */
@@ -49,6 +51,21 @@ void st7735_draw_char(int16_t x, int16_t y, char c,
 /** Draw a null-terminated string using the built-in font. */
 void st7735_draw_string(int16_t x, int16_t y, const char *s,
                         uint16_t fg, uint16_t bg, uint8_t size);
+
+/** Draw a null-terminated string using a specified bitmap font.
+ *  Supports `\n` for line breaks. The horizontal advance per char is
+ *  font->width; the cell is `font->width × font->height`. */
+void st7735_draw_text(int16_t x, int16_t y, const char *s,
+                      uint16_t fg, uint16_t bg, const font_t *font);
+
+/** Pixel width of a string in a given font (no kerning, fixed cell). */
+int16_t st7735_text_width(const char *s, const font_t *font);
+
+/** Blit a 16-bit RGB565 image. Pixels are stored in native uint16_t (host
+ *  byte order); this function byte-swaps to the panel's big-endian wire
+ *  format. Clipped to screen bounds. */
+void st7735_draw_rgb565(int16_t x, int16_t y, int16_t w, int16_t h,
+                        const uint16_t *pix);
 
 /** Draw a monochrome 1-bit-per-pixel bitmap (MSB of each byte = leftmost pixel).
  *  fg = foreground colour (1 bits), bg = background colour (0 bits). */

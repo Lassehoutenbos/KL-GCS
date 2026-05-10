@@ -73,6 +73,37 @@ Window {
         anchors.fill: parent
         visible: false
         z: 10
+        onBrandLogoRequested: {
+            if (visible) toggle()
+            root.showBootSplash()
+        }
+    }
+
+    function showBootSplash() {
+        splash.opacity = 1.0
+        splash.visible = true
+        logoBlock.opacity = 0
+        logoBlock.scale = 1.0
+        checkList.opacity = 0
+        footerBlock.opacity = 0
+        backdrop.opacity = 0
+        progressFill.width = 0
+        splashSeq.restart()
+    }
+
+    function dismissSplash() {
+        splashSeq.stop()
+        splashDismissAnim.restart()
+    }
+
+    NumberAnimation {
+        id: splashDismissAnim
+        target: splash
+        property: "opacity"
+        to: 0
+        duration: 240
+        easing.type: Easing.InCubic
+        onStopped: splash.visible = false
     }
 
     ConfirmOverlay {
@@ -90,6 +121,10 @@ Window {
             if (on && GCSState.keyUnlocked && !GCSState.droneArmed)
                 hwArmConfirm.open()
         }
+        function onKeyStateChanged() {
+            if (!GCSState.keyUnlocked && !splash.visible)
+                root.showBootSplash()
+        }
     }
 
     // ── BOOT SPLASH ─────────────────────────────────────────────────────────
@@ -104,96 +139,292 @@ Window {
         }
         opacity: 1.0
 
-        BrandLogo {
-            id: splashLogo
-            variant: "both"
-            width: 280
-            height: 280
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: -10
-            opacity: 0
-            scale: 0.94
+        readonly property int peripheralCount: {
+            var n = 0
+            var arr = GCSState.peripherals
+            for (var i = 0; i < arr.length; ++i)
+                if (arr[i] && arr[i].online) ++n
+            return n
+        }
 
-            // Pulsing halo
+        // Technical backdrop — vertical grid + slow scan line
+        Item {
+            id: backdrop
+            anchors.fill: parent
+            opacity: 0.0
+
+            Row {
+                anchors.fill: parent
+                Repeater {
+                    model: 16
+                    Item {
+                        width: backdrop.width / 16
+                        height: backdrop.height
+                        Rectangle {
+                            anchors.right: parent.right
+                            width: 1
+                            height: parent.height
+                            color: Theme.borderSoft
+                        }
+                    }
+                }
+            }
+
+            // Soft radial vignette to keep edges quiet
             Rectangle {
-                anchors.centerIn: parent
-                width: parent.width * 1.05
-                height: parent.height * 1.05
-                radius: width / 2
-                color: Theme.accentYellowGlow
-                opacity: 0.0
-                z: -1
-                SequentialAnimation on opacity {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.0) }
+                    GradientStop { position: 0.5; color: Qt.rgba(0, 0, 0, 0.0) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.35) }
+                }
+            }
+
+            // Slow scan sweep
+            Rectangle {
+                id: scanLine
+                width: backdrop.width
+                height: 1
+                color: Theme.accentYellow
+                opacity: 0.16
+                NumberAnimation on y {
                     running: splash.visible
                     loops: Animation.Infinite
-                    NumberAnimation { from: 0.0; to: 0.55; duration: 900; easing.type: Easing.InOutQuad }
-                    NumberAnimation { from: 0.55; to: 0.0; duration: 900; easing.type: Easing.InOutQuad }
+                    from: 0
+                    to: backdrop.height
+                    duration: 2600
+                    easing.type: Easing.InOutQuad
                 }
             }
         }
 
-        // Boot status line (small, monospaced, under the logo)
-        Text {
-            id: bootText
-            anchors {
-                top: splashLogo.bottom
-                topMargin: 10
-                horizontalCenter: parent.horizontalCenter
-            }
-            text: "INITIALIZING"
-            color: Theme.textDisabled
-            font.pixelSize: Theme.fontSectionLabel
-            font.family: Theme.fontMono
-            font.letterSpacing: 4.0
-            font.weight: Font.Medium
+        // Logo + tagline
+        Column {
+            id: logoBlock
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height * 0.16
+            spacing: 16
             opacity: 0
-        }
 
-        // 3-dot loading indicator
-        Row {
-            anchors {
-                top: bootText.bottom
-                topMargin: 8
-                horizontalCenter: parent.horizontalCenter
-            }
-            spacing: 6
-            opacity: bootText.opacity
-            Repeater {
-                model: 3
+            BrandLogo {
+                id: splashLogo
+                variant: "both"
+                width: 220
+                height: 220
+                anchors.horizontalCenter: parent.horizontalCenter
+
                 Rectangle {
-                    width: 5; height: 5; radius: 2.5
-                    color: Theme.accentYellow
-                    opacity: 0.25
+                    anchors.centerIn: parent
+                    width: parent.width * 1.05
+                    height: parent.height * 1.05
+                    radius: width / 2
+                    color: Theme.accentYellowGlow
+                    opacity: 0.0
+                    z: -1
                     SequentialAnimation on opacity {
                         running: splash.visible
-                        loops: Animation.Infinite
-                        PauseAnimation { duration: index * 200 }
-                        NumberAnimation { to: 1.0; duration: 280 }
-                        NumberAnimation { to: 0.25; duration: 380 }
-                        PauseAnimation { duration: (2 - index) * 200 }
+                        loops: 1
+                        NumberAnimation { from: 0.0; to: 0.45; duration: 1100; easing.type: Easing.InOutQuad }
+                        NumberAnimation { from: 0.45; to: 0.0; duration: 1100; easing.type: Easing.InOutQuad }
+                    }
+                }
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "GROUND  CONTROL  STATION"
+                color: Theme.textSecondary
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSectionLabel
+                font.letterSpacing: 6.0
+                font.weight: Font.Medium
+            }
+        }
+
+        // System check list
+        Column {
+            id: checkList
+            anchors.top: logoBlock.bottom
+            anchors.topMargin: 32
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 6
+            width: 380
+            opacity: 0
+
+            // "SYSTEM CHECK" header rule
+            Item {
+                width: parent.width
+                height: 18
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    width: parent.width * 0.30
+                    height: 1
+                    color: Theme.border
+                }
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.right: parent.right
+                    width: parent.width * 0.30
+                    height: 1
+                    color: Theme.border
+                }
+                Text {
+                    anchors.centerIn: parent
+                    text: "SYSTEM CHECK"
+                    color: Theme.textDisabled
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontMicro
+                    font.letterSpacing: 3.0
+                    font.weight: Font.Medium
+                }
+            }
+
+            Repeater {
+                model: ["pico", "mavlink", "modgps", "lora", "periph"]
+                delegate: Item {
+                    id: row
+                    width: 380
+                    height: 22
+                    opacity: 0
+
+                    readonly property bool ok: {
+                        switch (modelData) {
+                        case "pico":    return GCSState.picoConnected
+                        case "mavlink": return GCSState.mavlinkConnected
+                        case "modgps":  return GCSState.modGpsConnected
+                        case "lora":    return GCSState.loraConnected
+                        case "periph":  return splash.peripheralCount > 0
+                        }
+                        return false
+                    }
+                    readonly property string label: {
+                        switch (modelData) {
+                        case "pico":    return "PICO LINK"
+                        case "mavlink": return "MAVLINK"
+                        case "modgps":  return "MODULE GPS"
+                        case "lora":    return "LORA"
+                        case "periph":  return "PERIPHERALS"
+                        }
+                        return ""
+                    }
+                    readonly property string detail: {
+                        switch (modelData) {
+                        case "pico":    return GCSState.picoConnected   ? "ONLINE"  : "WAITING"
+                        case "mavlink": return GCSState.mavlinkConnected ? "LOCKED" : "STANDBY"
+                        case "modgps":  return GCSState.modGpsConnected ? "ONLINE"  : "STANDBY"
+                        case "lora":    return GCSState.loraConnected   ? "ONLINE"  : "STANDBY"
+                        case "periph":  return splash.peripheralCount + " ACTIVE"
+                        }
+                        return ""
+                    }
+
+                    StatusDot {
+                        id: dot
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        level: row.ok ? 0 : -1
+                        Behavior on level { NumberAnimation { duration: Theme.motionFast } }
+                    }
+                    Text {
+                        anchors.left: dot.right
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: row.label
+                        color: Theme.textPrimary
+                        font.family: Theme.fontMono
+                        font.pixelSize: Theme.fontValueSmall
+                        font.letterSpacing: 1.5
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: row.detail
+                        color: row.ok ? Theme.statusOk : Theme.textDisabled
+                        font.family: Theme.fontMono
+                        font.pixelSize: Theme.fontMicro
+                        font.letterSpacing: 2.0
+                        font.weight: Font.Medium
+                        Behavior on color { ColorAnimation { duration: Theme.motionMedium } }
+                    }
+
+                    SequentialAnimation on opacity {
+                        running: splash.visible
+                        PauseAnimation { duration: 650 + index * 110 }
+                        NumberAnimation { to: 1.0; duration: 220; easing.type: Easing.OutCubic }
                     }
                 }
             }
         }
 
-        // Sequence: fade-in logo → settle → hold → fade-out splash
+        // Progress bar + footer
+        Column {
+            id: footerBlock
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 36
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 380
+            spacing: 10
+            opacity: 0
+
+            Item {
+                width: parent.width
+                height: 3
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.bgSunken
+                    radius: 1
+                }
+                Rectangle {
+                    id: progressFill
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 0
+                    radius: 1
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: Qt.rgba(0.89, 0.82, 0.29, 0.55) }
+                        GradientStop { position: 1.0; color: Theme.accentYellow }
+                    }
+                    NumberAnimation on width {
+                        running: splash.visible
+                        from: 0
+                        to: footerBlock.width
+                        duration: 2050
+                        easing.type: Easing.InOutCubic
+                    }
+                }
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "PICODE GCS  ·  KL-SYSTEMS  ·  v1.0"
+                color: Theme.textDisabled
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontMicro
+                font.letterSpacing: 3.0
+            }
+        }
+
+        // Choreography: backdrop → logo → checks/footer (tap to dismiss)
         SequentialAnimation {
             id: splashSeq
             running: true
+            NumberAnimation { target: backdrop;    property: "opacity"; to: 1.0; duration: 280 }
+            NumberAnimation { target: logoBlock;   property: "opacity"; from: 0; to: 1; duration: 480; easing.type: Easing.OutCubic }
             ParallelAnimation {
-                NumberAnimation { target: splashLogo; property: "opacity"; from: 0; to: 1; duration: 450; easing.type: Easing.OutCubic }
-                NumberAnimation { target: splashLogo; property: "scale"; from: 0.94; to: 1.0; duration: 600; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+                NumberAnimation { target: checkList;   property: "opacity"; to: 1; duration: 250 }
+                NumberAnimation { target: footerBlock; property: "opacity"; to: 1; duration: 250 }
             }
-            NumberAnimation { target: bootText; property: "opacity"; to: 0.85; duration: 250 }
-            PauseAnimation { duration: 700 }
-            ParallelAnimation {
-                NumberAnimation { target: splashLogo; property: "scale"; to: 1.04; duration: 350; easing.type: Easing.InCubic }
-                NumberAnimation { target: splash; property: "opacity"; to: 0; duration: 350; easing.type: Easing.InCubic }
-            }
-            ScriptAction { script: splash.visible = false }
         }
 
-        // Block clicks while visible
-        MouseArea { anchors.fill: parent; enabled: splash.visible }
+        // Tap anywhere to dismiss; block all other clicks while visible
+        MouseArea {
+            anchors.fill: parent
+            enabled: splash.visible
+            onClicked: root.dismissSplash()
+        }
     }
 }

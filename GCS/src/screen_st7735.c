@@ -1,4 +1,5 @@
 #include "screen_st7735.h"
+#include "logo_kl.h"
 #include "pins.h"
 
 #include "pico/stdlib.h"
@@ -40,10 +41,9 @@
 #define ST77_GMCTRN1    0xE1
 #define ST77_NORON      0x13
 
-/* ST7735S 128x128 pixel offsets for 90° CCW rotation (MV=1).
- * With MV set, CASET addresses rows (132→offset 3) and
- * RASET addresses columns (162→offset 2). */
-#define XSTART  1
+/* ST7735S 128x128 pixel offsets for 90° CW rotation (MY+MV, see MADCTL below).
+ * Rotation 1 on a 1.44" GreenTab uses (XSTART=3, YSTART=2). */
+#define XSTART  3
 #define YSTART  2
 
 /* ------------------------------------------------------------------ */
@@ -190,16 +190,27 @@ static void set_addr_window(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
     write_cmd(ST77_RAMWR);
 }
 
-/* Write n pixels of the same 16-bit colour (RGB565, big-endian) */
+/* Write n pixels of the same 16-bit colour (RGB565, big-endian).
+ * Pre-fills a stack buffer and bursts it via SPI to amortise the per-call
+ * overhead — single-byte spi_write_blocking() per pixel is ~10× slower. */
 static void flood_colour(uint16_t color, uint32_t n)
 {
     uint8_t hi = (uint8_t)(color >> 8);
     uint8_t lo = (uint8_t)(color & 0xFF);
-    dc_data(); cs_low();
-    while (n--) {
-        spi_write_blocking(ST7735_SPI_INST, &hi, 1);
-        spi_write_blocking(ST7735_SPI_INST, &lo, 1);
+
+    enum { CHUNK_PIX = 64 };          /* 128 bytes — fits comfortably on stack */
+    uint8_t buf[CHUNK_PIX * 2];
+    for (int i = 0; i < CHUNK_PIX; i++) {
+        buf[2 * i]     = hi;
+        buf[2 * i + 1] = lo;
     }
+
+    dc_data(); cs_low();
+    while (n >= CHUNK_PIX) {
+        spi_write_blocking(ST7735_SPI_INST, buf, sizeof(buf));
+        n -= CHUNK_PIX;
+    }
+    if (n) spi_write_blocking(ST7735_SPI_INST, buf, n * 2);
     cs_high();
 }
 
@@ -282,9 +293,9 @@ void st7735_init(void)
 
     write_cmd(ST77_INVOFF);
 
-    /* Memory access control: MX+MV = 270° CCW (= 90° CW) rotation, RGB colour order.
-     * If red/blue are swapped on your module, change 0x60 to 0x68 (BGR). */
-    write_cmd(ST77_MADCTL);  write_data_byte(0x68);
+    /* Memory access control: MY+MV = 90° CW rotation (180° flipped from MX+MV),
+     * BGR colour order. If red/blue swap, change 0xA8 to 0xA0 (RGB). */
+    write_cmd(ST77_MADCTL);  write_data_byte(0xA8);
 
     /* 16-bit colour */
     write_cmd(ST77_COLMOD);  write_data_byte(0x05);
@@ -315,6 +326,9 @@ void st7735_init(void)
     vTaskDelay(pdMS_TO_TICKS(100));
 
     st7735_fill_screen(ST7735_BLACK);
+
+    /* Boot splash — KL-Systems logo, full screen */
+    st7735_draw_rgb565(0, 0, 128, 128, logo_kl_both);
 
     /* Soft-start the backlight: ramp 0 → 255 over ~100 ms so the LED
      * inrush current doesn't slam the 3.3 V rail and trigger BOR. */
@@ -371,38 +385,56 @@ void st7735_draw_vline(int16_t x, int16_t y, int16_t len, uint16_t color)
 void st7735_draw_char(int16_t x, int16_t y, char c,
                       uint16_t fg, uint16_t bg, uint8_t size)
 {
+    if (size == 0) size = 1;
+    if (size > 4)  size = 4;          /* clamp — keeps stack buffer bounded */
     if (c < 0x20 || c > 0x7E) c = '?';
     const uint8_t *glyph = s_font5x7[(uint8_t)(c - 0x20)];
 
-    if (size == 1) {
-        /* Simple 1:1 rendering, no anti-aliasing */
-        for (int col = 0; col < 5; col++) {
-            uint8_t line = glyph[col];
-            for (int row = 0; row < 7; row++) {
-                uint16_t color = (line & 1) ? fg : bg;
-                st7735_draw_pixel(x + col, y + row, color);
-                line >>= 1;
+    /* Render the whole glyph (6 cols incl. spacer × 7 rows, scaled) into a
+     * single RGB565 buffer and stream it with one address-window write —
+     * avoids one SPI transaction per pixel. */
+    int16_t cw = (int16_t)(6 * size);
+    int16_t ch = (int16_t)(7 * size);
+    if (x >= ST7735_WIDTH || y >= ST7735_HEIGHT) return;
+    if (x + cw <= 0 || y + ch <= 0) return;
+
+    uint8_t fg_hi = (uint8_t)(fg >> 8), fg_lo = (uint8_t)(fg & 0xFF);
+    uint8_t bg_hi = (uint8_t)(bg >> 8), bg_lo = (uint8_t)(bg & 0xFF);
+
+    uint8_t buf[6 * 4 * 7 * 4 * 2];   /* worst case: 6×7 px × size² × 2 bytes */
+    int idx = 0;
+
+    for (int row = 0; row < 7; row++) {
+        for (int sy = 0; sy < size; sy++) {
+            for (int col = 0; col < 6; col++) {
+                /* Column 5 = blank spacer */
+                int bit = (col < 5) ? ((glyph[col] >> row) & 1) : 0;
+                uint8_t hi = bit ? fg_hi : bg_hi;
+                uint8_t lo = bit ? fg_lo : bg_lo;
+                for (int sx = 0; sx < size; sx++) {
+                    buf[idx++] = hi;
+                    buf[idx++] = lo;
+                }
             }
-        }
-        /* One-pixel spacer column */
-        for (int row = 0; row < 7; row++) {
-            st7735_draw_pixel(x + 5, y + row, bg);
-        }
-    } else {
-        /* Scaled rendering for size >= 2: simple pixel scaling without edge AA */
-        for (int col = 0; col < 5; col++) {
-            uint8_t line = glyph[col];
-            for (int row = 0; row < 7; row++) {
-                uint16_t color = (line & 1) ? fg : bg;
-                st7735_fill_rect(x + col * size, y + row * size, size, size, color);
-                line >>= 1;
-            }
-        }
-        /* Spacer column */
-        for (int row = 0; row < 7; row++) {
-            st7735_fill_rect(x + 5 * size, y + row * size, size, size, bg);
         }
     }
+
+    /* Clip to screen — fall back to per-pixel for partial off-screen chars
+     * (rare; keeps the fast path simple). */
+    if (x < 0 || y < 0 || x + cw > ST7735_WIDTH || y + ch > ST7735_HEIGHT) {
+        for (int row = 0; row < ch; row++) {
+            for (int col = 0; col < cw; col++) {
+                int p = (row * cw + col) * 2;
+                uint16_t color = ((uint16_t)buf[p] << 8) | buf[p + 1];
+                st7735_draw_pixel(x + col, y + row, color);
+            }
+        }
+        return;
+    }
+
+    set_addr_window((uint8_t)x, (uint8_t)y,
+                    (uint8_t)(x + cw - 1), (uint8_t)(y + ch - 1));
+    write_data(buf, (size_t)(cw * ch * 2));
 }
 
 void st7735_draw_string(int16_t x, int16_t y, const char *s,
@@ -421,6 +453,122 @@ void st7735_draw_string(int16_t x, int16_t y, const char *s,
     }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Generic font_t-aware text drawing (font_6x10, font_8x16, …)       */
+/*  Renders each glyph row-major into a stack buffer and pushes via   */
+/*  one address-window write — same fast path as st7735_draw_char.    */
+/* ------------------------------------------------------------------ */
+
+static void draw_glyph_font(int16_t x, int16_t y, char c,
+                            uint16_t fg, uint16_t bg, const font_t *font)
+{
+    if ((uint8_t)c < font->first || (uint8_t)c > font->last) c = '?';
+    /* bytes_per_row == 0 → legacy 5x7 vertical-column data — not handled
+     * here; callers must use st7735_draw_string() for font_5x7. */
+    if (font->bytes_per_row == 0) return;
+
+    uint16_t glyph_bytes = (uint16_t)font->height * font->bytes_per_row;
+    const uint8_t *glyph =
+        font->data + ((uint8_t)c - font->first) * glyph_bytes;
+
+    if (x >= ST7735_WIDTH || y >= ST7735_HEIGHT) return;
+    if (x + font->width <= 0 || y + font->height <= 0) return;
+
+    uint8_t fg_hi = (uint8_t)(fg >> 8), fg_lo = (uint8_t)(fg & 0xFF);
+    uint8_t bg_hi = (uint8_t)(bg >> 8), bg_lo = (uint8_t)(bg & 0xFF);
+
+    /* Worst case: 8 cols × 16 rows × 2 bytes = 256 bytes. */
+    uint8_t buf[8 * 16 * 2];
+    uint16_t idx = 0;
+
+    for (uint8_t row = 0; row < font->height; row++) {
+        const uint8_t *rowp = glyph + (uint16_t)row * font->bytes_per_row;
+        for (uint8_t col = 0; col < font->width; col++) {
+            uint8_t byte = rowp[col >> 3];
+            int bit = (byte >> (7 - (col & 7))) & 1;
+            buf[idx++] = bit ? fg_hi : bg_hi;
+            buf[idx++] = bit ? fg_lo : bg_lo;
+        }
+    }
+
+    /* Off-screen partial: fall back to per-pixel draws. */
+    if (x < 0 || y < 0 ||
+        x + font->width  > ST7735_WIDTH ||
+        y + font->height > ST7735_HEIGHT) {
+        for (uint8_t row = 0; row < font->height; row++) {
+            for (uint8_t col = 0; col < font->width; col++) {
+                uint16_t p = ((uint16_t)row * font->width + col) * 2;
+                uint16_t color = ((uint16_t)buf[p] << 8) | buf[p + 1];
+                st7735_draw_pixel(x + col, y + row, color);
+            }
+        }
+        return;
+    }
+
+    set_addr_window((uint8_t)x, (uint8_t)y,
+                    (uint8_t)(x + font->width  - 1),
+                    (uint8_t)(y + font->height - 1));
+    write_data(buf, (size_t)font->width * font->height * 2);
+}
+
+void st7735_draw_text(int16_t x, int16_t y, const char *s,
+                      uint16_t fg, uint16_t bg, const font_t *font)
+{
+    int16_t start_x = x;
+    while (*s) {
+        if (*s == '\n') {
+            x = start_x;
+            y += font->height;
+        } else {
+            draw_glyph_font(x, y, *s, fg, bg, font);
+            x += font->width;
+        }
+        s++;
+    }
+}
+
+int16_t st7735_text_width(const char *s, const font_t *font)
+{
+    int16_t n = 0;
+    while (*s++) n++;
+    return (int16_t)(n * font->width);
+}
+
+void st7735_draw_rgb565(int16_t x, int16_t y, int16_t w, int16_t h,
+                        const uint16_t *pix)
+{
+    if (x >= ST7735_WIDTH || y >= ST7735_HEIGHT) return;
+    if (x + w <= 0 || y + h <= 0) return;
+    if (x < 0 || y < 0 || x + w > ST7735_WIDTH || y + h > ST7735_HEIGHT) {
+        for (int16_t row = 0; row < h; row++)
+            for (int16_t col = 0; col < w; col++)
+                st7735_draw_pixel(x + col, y + row, pix[row * w + col]);
+        return;
+    }
+
+    set_addr_window((uint8_t)x, (uint8_t)y,
+                    (uint8_t)(x + w - 1), (uint8_t)(y + h - 1));
+
+    enum { CHUNK_PIX = 64 };
+    uint8_t buf[CHUNK_PIX * 2];
+    uint32_t total = (uint32_t)w * (uint32_t)h;
+    uint32_t i = 0;
+
+    dc_data(); cs_low();
+    while (total) {
+        uint32_t n = total > CHUNK_PIX ? CHUNK_PIX : total;
+        for (uint32_t k = 0; k < n; k++) {
+            uint16_t p = pix[i + k];
+            buf[2 * k]     = (uint8_t)(p >> 8);
+            buf[2 * k + 1] = (uint8_t)(p & 0xFF);
+        }
+        spi_write_blocking(ST7735_SPI_INST, buf, n * 2);
+        i     += n;
+        total -= n;
+    }
+    cs_high();
+}
+
 void st7735_draw_mono_bitmap(int16_t x, int16_t y,
                              const uint8_t *bmp, int16_t w, int16_t h,
                              uint16_t fg, uint16_t bg)
@@ -437,8 +585,18 @@ void st7735_draw_mono_bitmap(int16_t x, int16_t y,
 
 void st7735_set_backlight(uint8_t level)
 {
-    /* Logarithmic (cubic) curve so the top 50 counts produce the steepest
-     * visible dimming:  255→255, 205→132, 128→32, 50→3, 0→0 */
+    /* At max, drive the pin permanently high — PWM at wrap=255 caps duty
+     * at 255/256 (≈99.6%) and the FET's switching loss further reduces
+     * average LED current. Going to plain SIO eliminates both. */
+    if (level >= 255) {
+        gpio_set_function(PIN_TFT_BLK, GPIO_FUNC_SIO);
+        gpio_set_dir(PIN_TFT_BLK, GPIO_OUT);
+        gpio_put(PIN_TFT_BLK, 1);
+        return;
+    }
+    gpio_set_function(PIN_TFT_BLK, GPIO_FUNC_PWM);
+    /* Cubic curve so the bottom values aren't blindingly bright:
+     * 255→255, 205→132, 128→32, 50→3, 0→0. */
     uint32_t pwm = (uint32_t)level * level * level / (255u * 255u);
     pwm_set_gpio_level(PIN_TFT_BLK, (uint16_t)pwm);
 }

@@ -10,7 +10,10 @@
       "Bash(python3:*)",
       "Bash(/c/Python313/python:*)",
       "Bash(cmake --build build/Desktop_Qt_6_11_0_MinGW_64_bit-Debug)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "PowerShell(Get-Item *)",
+      "PowerShell(Get-ChildItem *)",
+      "Bash(mingw32-make.exe)"
     ]
   }
 }
