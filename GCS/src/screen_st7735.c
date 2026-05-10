@@ -40,11 +40,15 @@
 #define ST77_GMCTRN1    0xE1
 #define ST77_NORON      0x13
 
-/* ST7735S 128x128 pixel offsets for 90° CCW rotation (MV=1).
- * With MV set, CASET addresses rows (132→offset 3) and
- * RASET addresses columns (162→offset 2). */
-#define XSTART  1
-#define YSTART  2
+/* Ben's Electronics 1.44" ST7735S (128x128) panel tuning.
+ * This module uses the common GreenTab addressing window. */
+#define XSTART  2
+#define YSTART  1
+
+/* MADCTL bits for landscape orientation used by the GCS UI.
+ * MX|MV selects a 90° clockwise rotation and BGR matches this module's
+ * native colour byte order. */
+#define ST7735_MADCTL_GCS 0x68
 
 /* ------------------------------------------------------------------ */
 /* Standard Adafruit 5×7 font (95 printable ASCII, 0x20–0x7E)           */
@@ -177,7 +181,7 @@ static void write_data_byte(uint8_t d)
     write_data(&d, 1);
 }
 
-/* Set address window (applies GreenTab x+2, y+1 offsets) */
+/* Set address window (Ben's 1.44" ST7735S: x+2, y+1 offsets) */
 static void set_addr_window(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
 {
     uint8_t caset[4] = { 0x00, (uint8_t)(x0 + XSTART),
@@ -280,11 +284,12 @@ void st7735_init(void)
 
     write_cmd(ST77_VMCTR1);  write_data_byte(0x0E);
 
-    write_cmd(ST77_INVOFF);
+    /* This panel is specified as "normally inverted" by the vendor. */
+    write_cmd(ST77_INVON);
 
-    /* Memory access control: MX+MV = 270° CCW (= 90° CW) rotation, RGB colour order.
-     * If red/blue are swapped on your module, change 0x60 to 0x68 (BGR). */
-    write_cmd(ST77_MADCTL);  write_data_byte(0x68);
+    /* Memory access control for Ben's 1.44" ST7735S module. */
+    write_cmd(ST77_MADCTL);
+    write_data_byte(ST7735_MADCTL_GCS);
 
     /* 16-bit colour */
     write_cmd(ST77_COLMOD);  write_data_byte(0x05);
